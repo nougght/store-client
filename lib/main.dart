@@ -1,7 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_store/services/api_service.dart';
+import 'classes.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:provider/provider.dart';
+import 'models/cart.dart';
+
+import 'cards.dart';
+import 'shopping_cart.dart';
+import 'main_page.dart';
+import 'profile_page.dart';
+import 'auth.dart';
+import 'models/user.dart';
 
 void main() {
-  runApp(const TestApp()); // запуск приложения
+  runApp(
+    MultiProvider(
+      providers: [
+        Provider(create: (_) => ApiService()),
+        ChangeNotifierProvider(
+          create: (context) => CartModel(context.read<ApiService>()),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => UserModel(context.read<ApiService>()),
+        ),
+      ],
+      child: const TestApp(),
+    ),
+  ); // запуск приложения
 }
 
 class TestApp extends StatelessWidget {
@@ -38,73 +65,294 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 1;
-  List<Widget> pages = <Widget>[
-    Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color.fromARGB(248, 133, 231, 166),
-        title: Text("Тест", style: TextStyle(fontSize: 20)),
-      ),
-    ),
-    CatalogPage(),
-    Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color.fromARGB(248, 133, 231, 166),
-        title: Text("Корзина", style: TextStyle(fontSize: 20)),
-      ),
-    ),
-  ];
+  late List<Widget> pages;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    pages = <Widget>[
+      MainPage(api: context.read<ApiService>()),
+      // Scaffold(
+      //   // appBar: AppBar(
+      //   //   backgroundColor: Color.fromARGB(248, 133, 231, 166),
+      //   //   title: Text("Тест", style: TextStyle(fontSize: 20)),
+      //   // ),
+      // ),
+      CatalogPage(), CartPage(), ProfilePage(),
+      // Scaffold(
+      //   appBar: AppBar(
+      //     backgroundColor: Color.fromARGB(248, 133, 231, 166),
+      //     title: Text("Корзина", style: TextStyle(fontSize: 20)),
+      //   ),
+      // ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.watch<UserModel>();
+    return user.isAuth
+        ? Scaffold(
+            bottomNavigationBar: NavigationBar(
+              labelBehavior:
+                  NavigationDestinationLabelBehavior.onlyShowSelected,
+              selectedIndex: _selectedIndex,
+              destinations: <Widget>[
+                NavigationDestination(icon: Icon(Icons.home), label: "Главная"),
+                NavigationDestination(
+                  icon: Icon(Icons.grid_view_rounded),
+                  label: "Каталог",
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.shopping_cart),
+                  label: "Корзина",
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.account_circle_rounded),
+                  label: "Профиль",
+                ),
+              ],
+
+              onDestinationSelected: (int index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+            ),
+            body: IndexedStack(index: _selectedIndex, children: pages),
+          )
+        : AuthPage();
+  }
+}
+
+class MainPage1 extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() => _MainPageState1();
+}
+
+class _MainPageState1 extends State<MainPage1> {
+  List<dynamic> data = [];
+  // List<Product> products = [
+  //   Product(
+  //     id: 0,
+  //     name: "Хлеб",
+  //     description: "Ржаной хлеб",
+  //     price: 35.0,
+  //     stock: 5,
+  //     categoryId: 2,
+  //   ),
+  //   Product(
+  //     id: 1,
+  //     name: "Молоко",
+  //     description: "1 литр, 3.2%",
+  //     price: 70.0,
+  //     stock: 10,
+  //     categoryId: 2,
+  //   ),
+  //   Product(
+  //     id: 2,
+  //     name: "Смартфон",
+  //     description: "Android, 128GB",
+  //     price: 15999.0,
+  //     stock: 3,
+  //     categoryId: 0,
+  //   ),
+  //   Product(
+  //     id: 3,
+  //     name: "Книга",
+  //     description: "Роман, 350 стр.",
+  //     price: 450.0,
+  //     stock: 7,
+  //     categoryId: 1,
+  //   ),
+  //   Product(
+  //     id: 4,
+  //     name: "Футболка",
+  //     description: "100% хлопок",
+  //     price: 599.0,
+  //     stock: 15,
+  //     categoryId: 3,
+  //   ),
+  // ];
+  Future<void> fetchData() async {
+    final url = Uri.parse('http://10.0.2.2:8080/products');
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        setState(() {
+          data = json.decode(response.body);
+          data = data.toList();
+        });
+        // print(data);
+      } else {
+        print('Ошибка: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Ошибка: $e');
+    }
+  }
+
+  @override
+  initState() {
+    super.initState();
+    fetchData();
+  }
+
+  Widget gridBuild(BuildContext c, int i) {
+    return ProductCard(product: Product.fromJson(data[i]));
+    // Placeholder();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: NavigationBar(
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-        selectedIndex: _selectedIndex,
-        destinations: <Widget>[
-          NavigationDestination(icon: Icon(Icons.home), label: "Главная"),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_rounded),
-            label: "Каталог",
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.shopping_cart),
-            label: "Корзина",
-          ),
-        ],
-
-        onDestinationSelected: (int index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+      appBar: AppBar(
+        backgroundColor: Color.fromARGB(248, 133, 231, 166),
+        title: Text(
+          "Главная",
+          style: TextStyle(fontSize: 20),
+          textAlign: TextAlign.center,
+        ),
+        // actions: [Icon(Icons.delete_sweep_rounded)],
       ),
-      body: pages[_selectedIndex],
+      body: Container(
+        child: data.isNotEmpty
+            ? GridView.builder(
+                padding: EdgeInsetsGeometry.all(15),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 0.55,
+                ),
+                itemCount: 140,
+                itemBuilder: gridBuild,
+              )
+            : Center(
+                child: Column(
+                  spacing: 20,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Text("Загрузка...", style: TextStyle(fontSize: 30)),
+                    CircularProgressIndicator(),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }
 
-class ProductCard extends StatelessWidget {
-  const ProductCard({super.key, this.name = '', this.imagePath = ''});
+// TextField(
+//             onSubmitted: (value) {
+//               setState(() {
+//                 _filter = value;
+//                 fetchData();
+//               });
+//             },
+//             onChanged: (value) {
+//               setState(() {
+//                 _filter = value;
+//                 fetchData();
+//               });
+//             },
+//             decoration: InputDecoration(
+//               border: OutlineInputBorder(
+//                 borderRadius: BorderRadius.circular(10),
+//               ),
+//               hintText: "Поиск",
+//               prefixIcon: Icon(Icons.search),
+//               contentPadding: EdgeInsetsGeometry.directional(),
+//             ),
+//           ),
 
-  final String name;
-  final String imagePath;
+// Widget CustomSearchField() {
+//   dynamic onChangedHandler;
+//   return TextField(
+//     onSubmitted: (value) {
+//       setState(() {
+//         _filter = value;
+// fetchData()
+//       });
+//     },
+//     onChanged: (value) {
+//       setState(() {
+//         _filter = value;
+//         fetchData();
+//       });
+//     },
+//     decoration: InputDecoration(
+//       border: OutlineInputBorder(
+//         borderRadius: BorderRadius.circular(10),
+//       ),
+//       hintText: "Поиск",
+//       prefixIcon: Icon(Icons.search),
+//       contentPadding: EdgeInsetsGeometry.directional(),
+//     ),
+//   );
+// }
+class CategoryCard extends StatelessWidget {
+  CategoryCard({super.key, required this.category, this.hasImage = false}) {
+    {
+      base64toPng(this.category.image);
+    }
+  }
+
+  final Category category;
+  late bool hasImage;
+  late Image image;
+  // final String name;
+  // final String imagePath;
+
+  bool isValidBase64(String str) {
+    try {
+      base64.decode(str);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  void base64toPng(String img) {
+    String pureBase = img.split(',').last;
+    if (!isValidBase64(img)) {
+      while (pureBase.length % 4 != 0) {
+        pureBase += "=";
+      }
+    }
+    Uint8List bytes = base64Decode(pureBase);
+
+    image = Image.memory(
+      bytes,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return const Placeholder();
+      },
+    );
+    hasImage = true;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Color.fromARGB(78, 195, 212, 207),
-        borderRadius: BorderRadius.all(Radius.circular(10)),
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        // Закругление
+        borderRadius: BorderRadius.circular(12),
       ),
-      padding: EdgeInsetsGeometry.all(5),
+      color: Color.fromARGB(255, 219, 219, 219),
 
       child: Column(
         children: [
-          Text(name, style: TextStyle(fontSize: 20)),
+          Text(category.name, style: TextStyle(fontSize: 20)),
           Expanded(
-            child: imagePath == ""
-                ? Placeholder()
-                : Image.asset("assets/images/$imagePath"),
+            child: hasImage ? image : Icon(Icons.error),
+            // child: imagePath == ""
+            //     ? Placeholder()
+            //     : Image.asset("assets/images/$imagePath"),
           ),
         ],
       ),
@@ -132,32 +380,65 @@ class CatalogPage extends StatefulWidget {
   State<StatefulWidget> createState() => _CalalogPageState();
 }
 
+// 127.0.0.1
+// 10.0.2.2 - эмулятор
 class _CalalogPageState extends State<CatalogPage> {
   String _filter = "";
+  List<dynamic> data = [];
+  List<dynamic> filtered = [];
 
-  List<Widget> _filterCards() {
-    List<Widget> res = [];
-    for (int i = 0; i < widget.categories.values.length; i++) {
-      if (_filter == "" ||
-          widget.categories.keys
-                  .elementAt(i)
-                  .toLowerCase()
-                  .indexOf(_filter.toLowerCase()) !=
-              -1) {
-        res.add(
-          ProductCard(
-            name: widget.categories.keys.elementAt(i),
-            imagePath: widget.categories.values.elementAt(i),
-          ),
-        );
+  Future<void> fetchData() async {
+    final url = Uri.parse('https://26aef7d5e7a1.ngrok-free.app/categories');
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        setState(() {
+          data = json.decode(response.body);
+          _filterCards();
+        });
+        // print(data);
+      } else {
+        print('Ошибка: ${response.statusCode}');
       }
+    } catch (e) {
+      print('Ошибка: $e');
     }
-    return res;
+  }
+
+  void _filterCards() {
+    setState(() {
+      filtered = _filter == ""
+          ? data
+          : data.where((element) {
+              return (element["name"].toLowerCase().indexOf(
+                    _filter.toLowerCase(),
+                  ) !=
+                  -1);
+            }).toList();
+    });
+    // for (int i = 0; i < widget.categories.values.length; i++) {
+    //   if (_filter == "" ||
+    //       widget.categories.keys
+    //               .elementAt(i)
+    //               .toLowerCase()
+    //               .indexOf(_filter.toLowerCase()) !=
+    //           -1) {
+    //     res.add(
+    //       CategoryCard(
+    //         name: widget.categories.keys.elementAt(i),
+    //         imagePath: widget.categories.values.elementAt(i),
+    //       ),
+    //     );
+    //   }
+    // }
+    // return res;
     // return List.generate(
     //   widget.categories.values.length,
     //   (int index) {
     //     return widget.categories.keys.elementAt(index).indexOf(_filter) == -1 ? Null :
-    //     ProductCard(
+    //     CategoryCard(
     //       name: widget.categories.keys.elementAt(index),
     //       imagePath: widget.categories.values.elementAt(index),
     //     );
@@ -166,148 +447,179 @@ class _CalalogPageState extends State<CatalogPage> {
   }
 
   @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    fetchData();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color.fromARGB(248, 133, 231, 166),
-        title: Padding(
-          padding: EdgeInsetsGeometry.only(bottom: 5),
-          child: TextField(
-            onSubmitted: (value) {
-              setState(() {
-                _filter = value;
-              });
-            },
-            onChanged: (value) {
-              setState(() {
-                _filter = value;
-              });
-            },
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+      // extendBodyBehindAppBar: true,
+      // appBar: PreferredSize(
+      //   preferredSize: Size.fromHeight(80),
+      //   child: Material(
+      //     color: Colors.transparent,
+      //     child: Stack(
+      //       children: [
+      //         Positioned(
+      //           child: Container(
+      //             height: 115,
+      //             alignment: Alignment.topCenter,
+      //             decoration: BoxDecoration(
+      //               color: Colors.green,
+      //               borderRadius: BorderRadius.vertical(
+      //                 bottom: Radius.circular(30),
+      //               ),
+      //             ),
+      //             child: AppBar(
+      //               backgroundColor: Color.fromARGB(0, 133, 231, 166),
+      //               elevation: 0,
+      //               title: Padding(
+      //                 padding: EdgeInsetsGeometry.only(bottom: 0, top: 0),
+      //                 child: TextField(
+      //                   onSubmitted: (value) {
+      //                     setState(() {
+      //                       _filter = value;
+      //                       fetchData();
+      //                     });
+      //                   },
+      //                   onChanged: (value) {
+      //                     setState(() {
+      //                       _filter = value;
+      //                       fetchData();
+      //                     });
+      //                   },
+      //                   decoration: InputDecoration(
+      //                     border: OutlineInputBorder(
+      //                       borderRadius: BorderRadius.circular(10),
+      //                     ),
+      //                     hintText: "Поиск",
+      //                     prefixIcon: Icon(Icons.search),
+      //                     contentPadding: EdgeInsetsGeometry.directional(),
+      //                   ),
+      //                 ),
+      //               ),
+      //             ),
+      //           ),
+      //         ),
+      //       ],
+      //     ),
+      //   ),
+      // ),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                backgroundColor: Color.fromARGB(255, 170, 230, 170),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusGeometry.only(
+                    bottomLeft: Radius.circular(25),
+                    bottomRight: Radius.circular(25),
+                  ),
+                ),
+
+                pinned: true,
+                title: Container(
+                  padding: EdgeInsetsGeometry.all(5),
+                  child: TextField(
+                    onSubmitted: (value) {
+                      setState(() {
+                        _filter = value;
+                        _filterCards();
+                      });
+                    },
+                    onChanged: (value) {
+                      setState(() {
+                        _filter = value;
+                        _filterCards();
+                      });
+                    },
+                    maxLines: 1,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      hintText: "Поиск",
+                      prefixIcon: Icon(Icons.search),
+                      contentPadding: EdgeInsetsGeometry.directional(),
+                    ),
+                  ),
+                ),
               ),
-              hintText: "Поиск",
-              prefixIcon: Icon(Icons.search),
-              contentPadding: EdgeInsetsGeometry.directional(),
-            ),
+              data.isNotEmpty
+                  ? SliverPadding(
+                      padding: EdgeInsetsGeometry.all(10),
+                      sliver: SliverGrid.builder(
+                        itemBuilder: (context, index) {
+                          return CategoryCard(
+                            category: Category.fromJson(filtered[index]),
+                          );
+                        },
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+
+                          // childAspectRatio: 0.55,
+                        ),
+                        itemCount: filtered.length,
+                      ),
+                    )
+                  : SliverToBoxAdapter(
+                      child: Center(
+                        child: Column(
+                          spacing: 20,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Text("Загрузка...", style: TextStyle(fontSize: 30)),
+                            CircularProgressIndicator(),
+                          ],
+                        ),
+                      ),
+                    ),
+              //                Container(
+              //   color: Colors.grey,
+              //   // padding: EdgeInsetsGeometry.only(top: 115),
+              //   child: Column(
+              //     children: [
+              //       Expanded(
+              //         child: data.isNotEmpty
+              //             ? GridView.count(
+              //                 // physics: ClampingScrollPhysics(),
+              //                 padding: EdgeInsetsGeometry.only(
+              //                   top: 125,
+              //                   bottom: 15,
+              //                   left: 15,
+              //                   right: 15,
+              //                 ),
+              //                 crossAxisCount: 2,
+              //                 scrollDirection: Axis.vertical,
+              //                 mainAxisSpacing: 10,
+              //                 crossAxisSpacing: 10,
+
+              //                 children: _filterCards(),
+              //               )
+              //             : Center(
+              //                 child: Column(
+              //                   spacing: 20,
+              //                   mainAxisAlignment: MainAxisAlignment.center,
+              //                   children: <Widget>[
+              //                     Text("Загрузка...", style: TextStyle(fontSize: 30)),
+              //                     CircularProgressIndicator(),
+              //                   ],
+              //                 ),
+              //               ),
+              //       ),
+              //     ],
+              //   ),
+              // ),
+            ],
           ),
-        ),
+        ],
       ),
-      body: Container(
-        padding: EdgeInsetsGeometry.only(top: 10),
-        child: Column(
-          children: [
-            Expanded(
-              child: GridView.count(
-                padding: EdgeInsetsGeometry.all(15),
-                crossAxisCount: 2,
-                scrollDirection: Axis.vertical,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-
-                children: _filterCards(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  void _restartCounter() {
-    setState(() {
-      _counter = 0;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            ElevatedButton(
-              onPressed: _restartCounter,
-              child: const Text('Restart counter'),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
