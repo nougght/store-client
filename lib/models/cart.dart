@@ -8,84 +8,175 @@ import 'package:mobile_store/services/api_service.dart';
 
 class CartModel with ChangeNotifier {
   final ApiService api;
+  bool cartLoaded = false;
+  bool productsLoaded = false;
   String? cartId;
-  List<dynamic> cartItems = [];
-  List<dynamic> products = [];
+  List<CartItem> cartItems = [];
+  List<Product> products = [];
+  bool isAllChecked = false;
 
   CartModel(this.api);
 
+  Product getProductById(String productId) {
+    return products.firstWhere(
+      (product) => product.id == productId,
+      orElse: () => Product(id: '', name: 'Unknown', description: '', price: 0.0, stock: 0),
+    );
+  }
+  CartItem getCartItemById(String cartItemId) {
+    return cartItems.firstWhere(
+      (item) => item.id == cartItemId,
+      orElse: () => CartItem(id: '', productId: '', quantity: 0, isChecked: false),
+    );
+  }
   Future<void> getCartId(String? userId) async {
     // временно
     cartId = "7d74c974-29ae-4307-95fc-4c7dff3172a8";
   }
 
-  Future<void> addToCart(Product product) async {
-    getCartId("");
-    var ItemToAdd = cartItems.firstWhere((item) {
-      return item["product_id"] == product.id;
-    }, orElse: () => null);
-    if (ItemToAdd != null) {
-      ItemToAdd["quantity"] += 1;
-    } else {
-      ItemToAdd = {"cart_id": cartId, 'product_id': product.id, 'quantity': 1};
-      cartItems.add(ItemToAdd);
-      products.add(product.toJson());
-    }
-    
-    notifyListeners();
-
-    try {
-      final response = await api.addToCart(ItemToAdd);
-    } catch (e) {
-      debugPrint('Ошибка обновления корзины: $e');
-    }
+  bool isProductInCart(String productId) {
+    return cartItems.any((item) => item.productId == productId);
   }
 
+  int getProductQuantity(String productId) {
+    final item = cartItems.firstWhere(
+      (item) => item.productId == productId,
+      orElse: () => CartItem(quantity: 0),
+    );
+    return item.quantity;
+  }
 
-  Future<void> fetchCartItems() async {
-    final url = Uri.parse(
-      'https://26aef7d5e7a1.ngrok-free.app/cart/085ed1df-58f5-43fc-8f67-1d9de231d9a8',
+  Future<void> addToCart(Product product) async {
+    getCartId("");
+    CartItem ItemToAdd = CartItem(
+      cart_id: cartId ?? "",
+      productId: product.id,
+      quantity: 1,
+      isChecked: false,
     );
 
     try {
-      final response = await http.get(url);
+      final response = await api.addToCart(ItemToAdd);
+      debugPrint('Добавлено в корзину: $response');
+      ItemToAdd.id = response; // Получаем ID добавленного товара
+      cartItems.add(ItemToAdd);
+      products.add(product);
 
-      if (response.statusCode == 200) {
-        var items = json.decode(response.body);
-        if (items != null) {
-          cartItems = items;
-          await fetchProducts();
-        }
-        // print(data);
-      } else {
-        print('Ошибка: ${response.statusCode}');
-      }
+      notifyListeners();
     } catch (e) {
-      print('Ошибка: $e');
+      debugPrint('Ошибка добавления в корзину: $e');
     }
+
+  }
+
+  Future<void> removeSelected() async {
+    var items = selectedItems;
+    try {
+      final response = await api.deleteSelected(items);
+      debugPrint('Удалено из корзины: $response');
+      for (var item in items) {
+        products.removeWhere((product) => product.id == item.productId);
+        cartItems.remove(item);
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Ошибка удаления из корзины: $e');
+    }
+
+  }
+
+  Future<void> toggleSelectAll(bool? value) async {
+    isAllChecked = value ?? false;
+    for (var item in cartItems) {
+      item.isChecked = isAllChecked;
+    }
+    cartItems = List.from(cartItems); // Обновляем список для уведомления слушателей
     notifyListeners();
   }
 
-  Future<void> fetchProducts() async {
-    String query = "";
-    for (var item in cartItems) {
-      query += item["product_id"] + ",";
-    }
-    query = query.substring(0, query.length - 1);
-    debugPrint(query);
-    final url = Uri.parse('https://26aef7d5e7a1.ngrok-free.app/products?ids=$query');
+  // Получаем список выбранных товаров (опционально)
+  List<CartItem> get selectedItems {
+    return cartItems.where((item) => item.isChecked).toList();
+  }
+
+  Future<bool> deleteFromCart(Product product) async {
+    var itemToDelete = cartItems.firstWhere((item) {
+      return item.productId == product.id;
+    }, orElse: () => CartItem());
 
     try {
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        products = json.decode(response.body);
-        // print(data);
-      } else {
-        print('Ошибка: ${response.statusCode}');
+      if (itemToDelete.id.isEmpty) {
+        debugPrint('Товар не найден в корзине: ${product.name}');
+        return true;
       }
+      final response = await api.deleteFromCart(itemToDelete.id);
+      cartItems.remove(itemToDelete);
+      products.removeWhere((prod) => prod.id == product.id);
+      notifyListeners();
+      return true;
     } catch (e) {
-      print('Ошибка: $e');
+      debugPrint('Ошибка удаления из корзины: $e');
+      return false;
     }
+  }
+
+  Future<bool> updateCartItemQuantity(Product product, int newQuantity) async {
+    getCartId("");
+    var ItemToUpdate = cartItems.firstWhere((item) {
+      return item.productId == product.id;
+    });
+
+
+    try {
+      final response = await api.updateCartItem({
+        "id": ItemToUpdate.id,
+        "quantity": newQuantity,
+      });
+      ItemToUpdate.quantity = newQuantity;
+      cartItems = List.from(
+        cartItems,
+      ); // Обновляем список для уведомления слушателей
+      products = List.from(
+        products,
+      ); // Обновляем список продуктов
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Ошибка обновления корзины: $e');
+      return false;
+    }
+  }
+
+  Future<void> fetchCartItems() async {
+    getCartId("");
+    try {
+      final response = await api.fetchCartItems();
+      cartItems = response;
+      cartLoaded = true;
+    } catch (e) {
+      debugPrint('Ошибка загрузки корзины: $e');
+    }
+  }
+
+  Future<void> fetchProducts() async {
+    if (cartItems.isEmpty) {
+      productsLoaded = true;
+      debugPrint('Корзина пуста, загрузка продуктов не требуется.');
+    } else {
+      String query = "";
+      for (var item in cartItems) {
+        query += item.productId + ",";
+      }
+      query = query.substring(0, query.length - 1);
+      debugPrint(query);
+      try {
+        final response = await api.fetchProductsByIds(query);
+        products = response;
+        productsLoaded = true;
+      } catch (e) {
+        debugPrint('Ошибка загрузки продуктов: $e');
+      }
+    }
+    notifyListeners();
   }
 }

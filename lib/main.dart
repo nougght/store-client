@@ -388,7 +388,7 @@ class _CalalogPageState extends State<CatalogPage> {
   List<dynamic> filtered = [];
 
   Future<void> fetchData() async {
-    final url = Uri.parse('https://26aef7d5e7a1.ngrok-free.app/categories');
+    final url = Uri.parse('http://10.0.2.2:8080/categories');
 
     try {
       final response = await http.get(url);

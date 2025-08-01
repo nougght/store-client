@@ -66,6 +66,7 @@ class _MainPageState extends State<MainPage> {
                       itemBuilder: (context, i) {
                         return ProductCard(
                           product: _products[i],
+                          
                         );
                       },
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

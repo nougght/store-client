@@ -9,7 +9,7 @@ import 'cart.dart';
 
 class UserModel with ChangeNotifier {
   final ApiService api;
-  bool _isAuth = false;
+  bool _isAuth = true;
   String? _phone;
   String? _smsCode;
   bool _isCodeSent = false;

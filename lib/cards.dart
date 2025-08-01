@@ -26,15 +26,13 @@ class _ProductCardState extends State<ProductCard> {
   late bool isInCart;
   late int quantityInCart;
 
-  TextEditingController textController = TextEditingController(text: '0');
+  late TextEditingController textController;
 
   @override
   void initState() {
     super.initState();
     hasImage = widget.hasImage;
-    isInFavourite = false;
-    isInCart = false;
-    quantityInCart = 0;
+
     images = [
       // Container(height: 700, width: 700, color: Colors.blue),
       // Container(
@@ -110,10 +108,21 @@ class _ProductCardState extends State<ProductCard> {
     hasImage = true;
   }
 
-  
-
   @override
   Widget build(BuildContext context) {
+    final cartModel = Provider.of<CartModel>(context);
+
+    isInFavourite = false;
+    isInCart = cartModel.isProductInCart(widget.product.id);
+    
+    quantityInCart = isInCart
+        ? cartModel.getProductQuantity(widget.product.id)
+        : 0;
+    
+    textController = TextEditingController(
+      text: isInCart ? quantityInCart.toString() : "1",
+    );
+    
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -260,7 +269,8 @@ class _ProductCardState extends State<ProductCard> {
             ),
             Container(
               padding: EdgeInsetsGeometry.only(left: 5, right: 5, bottom: 5),
-              child: !isInCart
+              child: !Provider.of<CartModel>(context).cartLoaded ||
+                      !isInCart
                   ? ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsetsGeometry.all(0),
@@ -292,11 +302,31 @@ class _ProductCardState extends State<ProductCard> {
                   : Row(
                       children: [
                         IconButton(
-                          onPressed: () {
-                            setState(() {
-                              quantityInCart--;
-                              textController.text = quantityInCart.toString();
-                            });
+                          onPressed: () async {
+                            
+                            if (quantityInCart <= 1) {
+                              isInCart = false;
+                              if (await context.read<CartModel>().deleteFromCart(
+                                widget.product,
+                              )) {
+                                setState(() {
+                                  quantityInCart = 0;
+                                  textController.text = "1";
+                                  isInCart = false;
+                                });
+                              }
+                            } else {
+                              if (await context.read<CartModel>().updateCartItemQuantity(
+                                widget.product,
+                                quantityInCart,
+                              )) {
+                                setState(() {
+                                  quantityInCart--;
+                                  textController.text = quantityInCart.toString();
+                                });
+
+                              }
+                            }
                           },
                           icon: Icon(Icons.remove),
                         ),
@@ -305,14 +335,35 @@ class _ProductCardState extends State<ProductCard> {
                             controller: textController,
                             style: TextStyle(fontSize: 15),
                             decoration: InputDecoration(isDense: true),
+                            onSubmitted: (value) {
+                              int newQuantity = int.tryParse(value) ?? 1;
+                              if (newQuantity < 1) {
+                                newQuantity = 1;
+                              }
+                              setState(() {
+                                quantityInCart = newQuantity;
+                                textController.text = quantityInCart.toString();
+                              });
+                              context.read<CartModel>().updateCartItemQuantity(
+                                widget.product,
+                                newQuantity,
+                              );
+                            },
                           ),
                         ),
                         IconButton(
-                          onPressed: () {
-                            setState(() {
-                              quantityInCart++;
-                              textController.text = quantityInCart.toString();
-                            });
+                          onPressed: () async {
+                            if (await context
+                                .read<CartModel>()
+                                .updateCartItemQuantity(
+                                  widget.product,
+                                  quantityInCart + 1,
+                                )) {
+                              setState(() {
+                                quantityInCart++;
+                                textController.text = quantityInCart.toString();
+                              });
+                            }
                           },
                           icon: Icon(Icons.add),
                         ),
@@ -327,9 +378,15 @@ class _ProductCardState extends State<ProductCard> {
 }
 
 class InCartProductCard extends StatefulWidget {
-  InCartProductCard({super.key, required this.product, this.hasImage = false});
-  bool _isChecked = false;
-  final Product product;
+  // добавить cartItem
+  InCartProductCard({
+    super.key,
+    required this.productId,
+    this.hasImage = false,
+    required this.cartItemId,
+  });
+  final String productId;
+  final String cartItemId;
   final bool hasImage;
 
   @override
@@ -337,8 +394,17 @@ class InCartProductCard extends StatefulWidget {
 }
 
 class _InCartProductCardState extends State<InCartProductCard> {
+  late TextEditingController textController;
+
   @override
   Widget build(BuildContext context) {
+    final CartModel cartModel = Provider.of<CartModel>(context);
+    final product = cartModel.getProductById(widget.productId);
+    final cartItem = cartModel.getCartItemById(widget.cartItemId);
+    textController  = TextEditingController(
+      text: cartItem.quantity.toString(),
+    );
+
     // TODO: implement build
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -346,7 +412,7 @@ class _InCartProductCardState extends State<InCartProductCard> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ProductPage(product: widget.product),
+            builder: (_) => ProductPage(product: product),
           ),
         );
       },
@@ -405,8 +471,7 @@ class _InCartProductCardState extends State<InCartProductCard> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                      Text(
-                                        widget.product.price.toStringAsFixed(2)+' ₽',
+                                      Text("${product.price.toStringAsFixed(2)} ₽",
                                         style: TextStyle(
                                           fontSize: 30,
                                           // backgroundColor: Colors.amber,
@@ -415,13 +480,13 @@ class _InCartProductCardState extends State<InCartProductCard> {
                                         textAlign: TextAlign.left,
                                       ),
                                       Text(
-                                        widget.product.name,
+                                        product.name,
                                         style: TextStyle(fontSize: 20),
                                         textAlign: TextAlign.left,
                                         maxLines: 1,
                                       ),
                                       Text(
-                                        "${widget.product.quantity} ${widget.product.unit}",
+                                        "${product.quantity} ${product.unit}",
                                         style: TextStyle(
                                           fontSize: 15,
                                           color: Colors.blueGrey,
@@ -478,9 +543,27 @@ class _InCartProductCardState extends State<InCartProductCard> {
                                                 constraints: BoxConstraints(),
                                                 onPressed: () {
                                                   setState(() {
-                                                    // quantityInCart--;
-                                                    // textController.text = quantityInCart
-                                                    //     .toString();
+                                                    cartItem.quantity--;
+                                                    textController.text = cartItem
+                                                        .quantity
+                                                        .toString();
+                                                    if (cartItem
+                                                            .quantity <=
+                                                        0) {
+                                                      context
+                                                          .read<CartModel>()
+                                                          .deleteFromCart(
+                                                            product,
+                                                          );
+                                                    } else {
+                                                      context
+                                                          .read<CartModel>()
+                                                          .updateCartItemQuantity(
+                                                            product,
+                                                            cartItem
+                                                                .quantity,
+                                                          );
+                                                    }
                                                   });
                                                 },
                                                 icon: Icon(Icons.remove),
@@ -494,7 +577,28 @@ class _InCartProductCardState extends State<InCartProductCard> {
                                                   style: TextStyle(
                                                     fontSize: 15,
                                                   ),
-                                                  // controller: textController,
+                                                  controller: textController,
+                                                  onSubmitted: (value) {
+                                                    int newQuantity =
+                                                        int.tryParse(value) ??
+                                                        1;
+                                                    if (newQuantity < 1) {
+                                                      newQuantity = 1;
+                                                    }
+                                                    setState(() {
+                                                      cartItem.quantity =
+                                                          newQuantity;
+                                                      textController.text =
+                                                          newQuantity
+                                                              .toString();
+                                                    });
+                                                    context
+                                                        .read<CartModel>()
+                                                        .updateCartItemQuantity(
+                                                          product,
+                                                          newQuantity,
+                                                        );
+                                                  },
                                                 ),
                                               ),
                                               IconButton(
@@ -502,10 +606,18 @@ class _InCartProductCardState extends State<InCartProductCard> {
                                                 constraints: BoxConstraints(),
                                                 onPressed: () {
                                                   setState(() {
-                                                    // quantityInCart++;
-                                                    // textController.text = quantityInCart
-                                                    //     .toString();
+                                                    cartItem.quantity++;
+                                                    textController.text = cartItem
+                                                        .quantity
+                                                        .toString();
                                                   });
+                                                  context
+                                                      .read<CartModel>()
+                                                      .updateCartItemQuantity(
+                                                        product,
+                                                        cartItem
+                                                            .quantity,
+                                                      );
                                                 },
                                                 icon: Icon(Icons.add),
                                                 iconSize: 15,
@@ -529,10 +641,10 @@ class _InCartProductCardState extends State<InCartProductCard> {
                   top: 5,
                   right: 5,
                   child: Checkbox(
-                    value: widget._isChecked,
+                    value: cartItem.isChecked,
                     onChanged: (checkState) {
                       setState(() {
-                        widget._isChecked = checkState!;
+                        cartItem.isChecked = checkState ?? false;
                       });
                     },
                   ),

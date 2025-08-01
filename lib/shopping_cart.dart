@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_store/cards.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:mobile_store/services/api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -48,7 +49,6 @@ class _CartPageState extends State<CartPage> {
   //   ),
   // ];
 
-  var _isLoading = true;
 
   @override
   initState() {
@@ -64,17 +64,15 @@ class _CartPageState extends State<CartPage> {
 
   Future<void> _loadCart() async {
     final cartModel = Provider.of<CartModel>(context, listen: false);
-    setState(() {
-      _isLoading = true;
-    });
     await cartModel.fetchCartItems();
-    setState(() {
-      _isLoading = false;
-    });
+    if (cartModel.cartLoaded) {
+      await cartModel.fetchProducts();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Consumer<CartModel>(
       builder: (context, cartModel, child) {
         return Scaffold(
@@ -97,16 +95,20 @@ class _CartPageState extends State<CartPage> {
                 title: Text('Корзина', style: TextStyle(fontSize: 20)),
                 actions: [
                   Checkbox(
-                    value: false,
+                    value: cartModel.isAllChecked,
                     onChanged: (istrue) {
-                      print(istrue);
+                      setState(() {
+                        cartModel.toggleSelectAll(istrue);
+                      });
                     },
                   ),
-                  IconButton(onPressed: () {}, icon: Icon(Icons.delete_sweep)),
+                  IconButton(onPressed: () {
+                    cartModel.removeSelected();
+                  }, icon: Icon(Icons.delete_sweep)),
                 ],
               ),
 
-              !_isLoading
+              cartModel.cartLoaded && cartModel.productsLoaded
                   ? cartModel.products.isEmpty
                         ? SliverToBoxAdapter(
                             child: Padding(
@@ -129,9 +131,8 @@ class _CartPageState extends State<CartPage> {
                                 int index,
                               ) {
                                 return InCartProductCard(
-                                  product: Product.fromJson(
-                                    cartModel.products[index],
-                                  ),
+                                  productId: cartModel.products[index].id,
+                                  cartItemId: cartModel.cartItems[index].id,
                                 );
                               }, childCount: cartModel.products.length),
                             ),

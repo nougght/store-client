@@ -58,6 +58,43 @@ class Product {
   }
 }
 
+
+class CartItem {
+  CartItem({
+    this.id = "",
+    this.cart_id = "",
+    this.productId = "",
+    this.quantity = 0,
+    this.isChecked = false,
+  });
+
+  String id;
+  String cart_id;
+  String productId;
+  int quantity;
+  bool isChecked;
+
+  factory CartItem.fromJson(Map<String, dynamic> json) {
+    return CartItem(
+      id: json['id'] ?? "",
+      cart_id: json['cart_id'] ?? "",
+      productId: json['product_id'] ?? "",
+      quantity: json['quantity'] ?? 0,
+      isChecked: json['is_checked'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'cart_id': cart_id,
+      'product_id': productId,
+      'quantity': quantity,
+      'is_checked': isChecked,
+    };
+  }
+}
+
 class Category {
   Category({
     this.id = "",
