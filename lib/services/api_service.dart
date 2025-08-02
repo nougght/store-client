@@ -17,6 +17,22 @@ class ApiService {
     }
   }
 
+
+
+  Future<List<Category>> fetchCategories() async {
+    final response = await http.get(Uri.parse("$_emUrl/categories"));
+
+      if (response.statusCode == 200) {
+        return (json.decode(response.body) as List)
+            .map((item) => Category.fromJson(item))
+            .toList();
+        // print(data);
+      } else {
+        throw Exception('Ошибка загрузки категорий: ${response.statusCode}');
+      }
+    }
+
+
   Future<List<CartItem>> fetchCartItems({
     String id = "7d74c974-29ae-4307-95fc-4c7dff3172a8",
   }) async {
