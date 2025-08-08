@@ -4,6 +4,8 @@ import 'classes.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'models/cart.dart';
 
 import 'cards.dart';
@@ -11,23 +13,26 @@ import 'shopping_cart.dart';
 import 'main_page.dart';
 import 'profile_page.dart';
 import 'auth.dart';
-import 'models/user.dart';
+import 'models/auth.dart';
 import 'catalog_page.dart';
 import 'models/catalog.dart';
+import 'models/settings.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token') ?? '';
+  final userId = prefs.getString('userId') ?? '';
+
   runApp(
     MultiProvider(
       providers: [
         Provider(create: (_) => ApiService()),
+        ChangeNotifierProvider(create: (context) => SettingsModel(context.read<ApiService>())),
+        ChangeNotifierProvider(create: (context) => CatalogModel(context.read<ApiService>())),
+        ChangeNotifierProvider(create: (context) => CartModel(context.read<ApiService>())),
         ChangeNotifierProvider(
-          create: (context) => UserModel(context.read<ApiService>()),
-        ),
-        ChangeNotifierProvider(
-          create: (context) => CatalogModel(context.read<ApiService>()),
-        ),
-        ChangeNotifierProvider(
-          create: (context) => CartModel(context.read<ApiService>()),
+          create: (context) => AuthModel(context.read<ApiService>())..autoLogin(token, userId),
         ),
       ],
       child: const TestApp(),
@@ -40,13 +45,12 @@ class TestApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settingsModel = Provider.of<SettingsModel>(context);
     return MaterialApp(
       title: 'Test',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromARGB(249, 75, 226, 125),
-        ),
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: settingsModel.currentTheme,
+
       home: MainScreen(),
     );
   }
@@ -95,34 +99,54 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<UserModel>();
-    return user.isAuth
+    final user = context.watch<AuthModel>();
+    if (user.isAuth && context.read<CartModel>().cartId == null) {
+      context.read<CartModel>().setCartIdByUserId(user.currentUser!.userId);
+    }
+    return user.isSplashScreen
         ? Scaffold(
-            bottomNavigationBar: NavigationBar(
-              labelBehavior:
-                  NavigationDestinationLabelBehavior.onlyShowSelected,
-              selectedIndex: _selectedIndex,
-              destinations: <Widget>[
-                NavigationDestination(icon: Icon(Icons.home), label: "Главная"),
-                NavigationDestination(
-                  icon: Icon(Icons.grid_view_rounded),
-                  label: "Каталог",
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.shopping_cart),
-                  label: "Корзина",
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.account_circle_rounded),
-                  label: "Профиль",
-                ),
-              ],
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FlutterLogo(size: 100),
+                  const SizedBox(height: 50),
+                  const CircularProgressIndicator(semanticsLabel: 'Loading...', color: Color.fromARGB(248, 133, 231, 166), strokeWidth: 5),
+                ],
+              ),
+            ),
+          )
+        : user.isAuth
+        ? Scaffold(
+            bottomNavigationBar: Container(
+              decoration: BoxDecoration(
+                // border: Border(top: BorderSide(color: const Color.fromARGB(50, 76, 76, 76))),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color.fromARGB(17, 0, 0, 0),
+                    blurRadius: 1,
+                    offset: Offset(0, -1),
+                  ),
+                ],
+              ),
+              child: NavigationBar(
+                // поменять цвет
+                // backgroundColor: Theme.of(context).colorScheme.inverseSurface.withAlpha(20),
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                selectedIndex: _selectedIndex,
+                destinations: <Widget>[
+                  NavigationDestination(icon: Icon(Icons.home), label: "Главная"),
+                  NavigationDestination(icon: Icon(Icons.grid_view_rounded), label: "Каталог"),
+                  NavigationDestination(icon: Icon(Icons.shopping_cart), label: "Корзина"),
+                  NavigationDestination(icon: Icon(Icons.account_circle_rounded), label: "Профиль"),
+                ],
 
-              onDestinationSelected: (int index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
-              },
+                onDestinationSelected: (int index) {
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+              ),
             ),
             body: IndexedStack(index: _selectedIndex, children: pages),
           )
@@ -215,11 +239,7 @@ class _MainPageState1 extends State<MainPage1> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Color.fromARGB(248, 133, 231, 166),
-        title: Text(
-          "Главная",
-          style: TextStyle(fontSize: 20),
-          textAlign: TextAlign.center,
-        ),
+        title: Text("Главная", style: TextStyle(fontSize: 20), textAlign: TextAlign.center),
         // actions: [Icon(Icons.delete_sweep_rounded)],
       ),
       body: Container(

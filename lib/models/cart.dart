@@ -16,6 +16,21 @@ class CartModel with ChangeNotifier {
   bool isAllChecked = false;
 
   CartModel(this.api);
+  int get totalQuantity {
+    return cartItems.fold(0, (sum, item) {
+      return sum + item.quantity;
+    });
+  }
+
+  double get totalPrice {
+    return cartItems.fold(0.0, (sum, item) {
+      final product = products.firstWhere(
+        (prod) => prod.id == item.productId,
+        orElse: () => Product(id: '', name: '', description: '', price: 0.0, stock: 0),
+      );
+      return sum + (product.price * item.quantity);
+    });
+  }
 
   Product getProductById(String productId) {
     return products.firstWhere(
@@ -23,15 +38,28 @@ class CartModel with ChangeNotifier {
       orElse: () => Product(id: '', name: 'Unknown', description: '', price: 0.0, stock: 0),
     );
   }
+
   CartItem getCartItemById(String cartItemId) {
     return cartItems.firstWhere(
       (item) => item.id == cartItemId,
       orElse: () => CartItem(id: '', productId: '', quantity: 0, isChecked: false),
     );
   }
-  Future<void> getCartId(String? userId) async {
-    // временно
-    cartId = "7d74c974-29ae-4307-95fc-4c7dff3172a8";
+
+  Future<void> setCartIdByUserId(String? userId) async {
+    if (userId != null) {
+      try {
+        cartId = await api.GetCartIdByUserId(userId);
+        fetchCartItems();
+        fetchProducts();
+        cartLoaded = true;
+      } catch (e) {
+        debugPrint('Ошибка загрузки корзины: $e');
+      }
+
+      notifyListeners();
+      // cartLoaded = true;
+    }
   }
 
   bool isProductInCart(String productId) {
@@ -47,7 +75,6 @@ class CartModel with ChangeNotifier {
   }
 
   Future<void> addToCart(Product product) async {
-    getCartId("");
     CartItem ItemToAdd = CartItem(
       cart_id: cartId ?? "",
       productId: product.id,
@@ -66,7 +93,6 @@ class CartModel with ChangeNotifier {
     } catch (e) {
       debugPrint('Ошибка добавления в корзину: $e');
     }
-
   }
 
   Future<void> removeSelected() async {
@@ -82,7 +108,6 @@ class CartModel with ChangeNotifier {
     } catch (e) {
       debugPrint('Ошибка удаления из корзины: $e');
     }
-
   }
 
   Future<void> toggleSelectAll(bool? value) async {
@@ -121,24 +146,15 @@ class CartModel with ChangeNotifier {
   }
 
   Future<bool> updateCartItemQuantity(Product product, int newQuantity) async {
-    getCartId("");
     var ItemToUpdate = cartItems.firstWhere((item) {
       return item.productId == product.id;
     });
 
-
     try {
-      final response = await api.updateCartItem({
-        "id": ItemToUpdate.id,
-        "quantity": newQuantity,
-      });
+      final response = await api.updateCartItem({"id": ItemToUpdate.id, "quantity": newQuantity});
       ItemToUpdate.quantity = newQuantity;
-      cartItems = List.from(
-        cartItems,
-      ); // Обновляем список для уведомления слушателей
-      products = List.from(
-        products,
-      ); // Обновляем список продуктов
+      cartItems = List.from(cartItems); // Обновляем список для уведомления слушателей
+      products = List.from(products); // Обновляем список продуктов
       notifyListeners();
       return true;
     } catch (e) {
@@ -148,9 +164,8 @@ class CartModel with ChangeNotifier {
   }
 
   Future<void> fetchCartItems() async {
-    getCartId("");
     try {
-      final response = await api.fetchCartItems();
+      final response = await api.fetchCartItems(id: cartId!);
       cartItems = response;
       cartLoaded = true;
     } catch (e) {

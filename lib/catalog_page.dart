@@ -69,9 +69,7 @@ class CategoryCard extends StatelessWidget {
           // Закругление
           borderRadius: BorderRadius.circular(12),
         ),
-        color: isSelected
-            ? Color.fromARGB(255, 230, 179, 90)
-            : Color.fromARGB(255, 219, 219, 219),
+        color: isSelected ? Color.fromARGB(255, 230, 179, 90) : Color.fromARGB(255, 219, 219, 219),
 
         child: Column(
           children: [
@@ -112,6 +110,9 @@ class CatalogPage extends StatefulWidget {
 // 127.0.0.1
 // 10.0.2.2 - эмулятор
 class _CalalogPageState extends State<CatalogPage> {
+  int _radioVal = 0;
+  List<String> _radioText = ["Дешевле", "Дороже", "Новые"];
+
   // void _filterCards() {
   //   setState(() {
   //     filtered = _filter == ""
@@ -192,9 +193,7 @@ class _CalalogPageState extends State<CatalogPage> {
                         },
                         maxLines: 1,
                         decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                           hintText: "Поиск",
                           prefixIcon: Icon(Icons.search),
                           contentPadding: EdgeInsetsGeometry.directional(),
@@ -217,13 +216,12 @@ class _CalalogPageState extends State<CatalogPage> {
                                 ),
                               );
                             },
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  mainAxisSpacing: 10,
-                                  crossAxisSpacing: 10,
-                                  childAspectRatio: 1,
-                                ),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              childAspectRatio: 1,
+                            ),
                             itemCount: catalogModel.categories.length,
                           )
                         : SliverToBoxAdapter(
@@ -232,31 +230,177 @@ class _CalalogPageState extends State<CatalogPage> {
                                 spacing: 20,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: <Widget>[
-                                  Text(
-                                    "Загрузка...",
-                                    style: TextStyle(fontSize: 30),
-                                  ),
+                                  Text("Загрузка...", style: TextStyle(fontSize: 30)),
                                   CircularProgressIndicator(),
                                 ],
                               ),
                             ),
                           ),
                   ),
+                  SliverToBoxAdapter(
+                    child: Center(
+                      child: Container(
+                        padding: EdgeInsets.only(left: 10, right: 10, top: 7, bottom: 7),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(width: 1, color: Color.fromARGB(84, 0, 0, 0)),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadiusGeometry.only(
+                                      topLeft: Radius.circular(25),
+                                      topRight: Radius.circular(25),
+                                    ),
+                                  ),
+                                  builder: (context) {
+                                    return Consumer<CatalogModel>(
+                                      builder: (context, model, child) {
+                                        return IntrinsicHeight(
+                                          child: Container(
+                                            padding: EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadiusGeometry.all(
+                                                Radius.circular(
+                                                  10,
+                                                ), // без радиуса контейнер выходит за границы bottomsheet
+                                              ),
+                                              // color: Theme.of(context).colorScheme.primary,
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                Text(
+                                                  "Показывать сначала",
+                                                  style: TextStyle(fontSize: 25),
+                                                ),
+                                                SizedBox(height: 20),
+                                                ClipRRect(
+                                                  borderRadius: BorderRadiusGeometry.all(
+                                                    Radius.circular(20),
+                                                  ),
+                                                  child: Container(
+                                                    padding: EdgeInsetsGeometry.symmetric(
+                                                      vertical: 10,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.secondary.withAlpha(200),
+                                                    ),
+                                                    child: Column(
+                                                      children: [
+                                                        RadioListTile(
+                                                          value: 0,
+                                                          groupValue: catalogModel.selectedSort,
+                                                          title: Text(
+                                                            _radioText[0],
+                                                            style: TextStyle(fontSize: 20),
+                                                          ),
+                                                          onChanged: (value) {
+                                                            if (value != null) {
+                                                              catalogModel.setSort(value);
+                                                            }
+                                                          },
+                                                        ),
+                                                        Divider(
+                                                          indent: 20,
+                                                          endIndent: 20,
+                                                          color: Colors.black.withAlpha(100),
+                                                        ),
+                                                        RadioListTile(
+                                                          value: 1,
+                                                          groupValue: catalogModel.selectedSort,
+                                                          title: Text(
+                                                            _radioText[1],
+                                                            style: TextStyle(fontSize: 20),
+                                                          ),
+                                                          onChanged: (value) {
+                                                            if (value != null) {
+                                                              catalogModel.setSort(value);
+                                                            }
+                                                          },
+                                                        ),
+                                                        Divider(
+                                                          indent: 20,
+                                                          endIndent: 20,
+                                                          color: Colors.black.withAlpha(100),
+                                                        ),
+                                                        RadioListTile(
+                                                          value: 2,
+                                                          groupValue: catalogModel.selectedSort,
+                                                          title: Text(
+                                                            _radioText[2],
+                                                            style: TextStyle(fontSize: 20),
+                                                          ),
+                                                          onChanged: (value) {
+                                                            if (value != null) {
+                                                              catalogModel.setSort(value);
+                                                            }
+                                                          },
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                                SizedBox(height: 20),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                );
+                              },
+                              // style: ElevatedButton.styleFrom(elevation: 0,
+                              // backgroundColor: Theme.of(context).colorScheme.secondary),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.sort_rounded),
+                                  SizedBox(width: 10),
+                                  Text('Сортировка', style: TextStyle(fontSize: 20)),
+                                ],
+                              ),
+                            ),
+
+                            TextButton(
+                              onPressed: () {},
+                              // style: ElevatedButton.styleFrom(
+                              //   backgroundColor: Theme.of(
+                              //     context,
+                              //   ).colorScheme.secondary,
+                              // ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.settings),
+                                  SizedBox(width: 10),
+                                  Text('Фильтр', style: TextStyle(fontSize: 20)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   SliverPadding(
                     padding: EdgeInsetsGeometry.all(10),
                     sliver: catalogModel.productsLoaded
                         ? SliverGrid.builder(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  mainAxisSpacing: 10,
-                                  crossAxisSpacing: 10,
-                                  childAspectRatio: 0.55,
-                                ),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              childAspectRatio: 0.6,
+                            ),
                             itemBuilder: (context, i) {
-                              return ProductCard(
-                                product: catalogModel.filteredProducts[i],
-                              );
+                              return ProductCard(product: catalogModel.filteredProducts[i]);
                             },
                             itemCount: catalogModel.filteredProducts.length,
                           )
@@ -266,10 +410,7 @@ class _CalalogPageState extends State<CatalogPage> {
                                 spacing: 20,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: <Widget>[
-                                  Text(
-                                    "Загрузка...",
-                                    style: TextStyle(fontSize: 30),
-                                  ),
+                                  Text("Загрузка...", style: TextStyle(fontSize: 30)),
                                   CircularProgressIndicator(),
                                 ],
                               ),

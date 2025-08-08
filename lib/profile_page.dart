@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_store/favourites_page.dart';
+import 'package:mobile_store/settings_page.dart';
+import 'package:provider/provider.dart';
+import 'models/auth.dart';
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -15,6 +19,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final authModel = Provider.of<AuthModel>(context);
     return Scaffold(
       body: Stack(
         children: [
@@ -29,8 +34,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 pinned: true,
+                leading: Icon(Icons.person_rounded),
                 title: Text(
-                  "Профиль",
+                  authModel.currentUser!.username,
                   style: TextStyle(fontSize: 20),
                   textAlign: TextAlign.center,
                 ),
@@ -43,7 +49,9 @@ class _ProfilePageState extends State<ProfilePage> {
               SliverList(
                 delegate: SliverChildListDelegate([
                   ElevatedButton(
-                    onPressed: () => print('Кнопка 1'),
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => FavouritesPage()));
+                    },
                     child: Row(
                       children: [
                         Icon(Icons.bookmark_rounded),
@@ -55,10 +63,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     style: ElevatedButton.styleFrom(
                       elevation: 0, // Убирает тень
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                      ),
-                      padding: EdgeInsetsGeometry.all(10)
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                      padding: EdgeInsetsGeometry.all(10),
                     ),
                   ),
                   Divider(height: 1),
@@ -68,22 +74,27 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         Icon(Icons.history),
                         SizedBox(width: 10),
-                        Text('История',style: TextStyle(fontSize: 20),),
+                        Text('История', style: TextStyle(fontSize: 20)),
                         Spacer(),
                         Icon(Icons.chevron_right),
                       ],
                     ),
                     style: ElevatedButton.styleFrom(
                       elevation: 0, // Убирает тень
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                      ),
-                      padding: EdgeInsetsGeometry.all(10)
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                      padding: EdgeInsetsGeometry.all(10),
                     ),
                   ),
                   Divider(height: 1),
                   ElevatedButton(
-                    onPressed: () => print('Кнопка 1'),
+                    onPressed: () =>
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage())),
+                    
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0, // Убирает тень
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                      padding: EdgeInsetsGeometry.all(10),
+                    ),
                     child: Row(
                       children: [
                         Icon(Icons.settings),
@@ -93,15 +104,28 @@ class _ProfilePageState extends State<ProfilePage> {
                         Icon(Icons.chevron_right),
                       ],
                     ),
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0, // Убирает тень
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                      ),
-                      padding: EdgeInsetsGeometry.all(10)
-                    ),
                   ),
                   Divider(height: 1),
+                  SizedBox(height: 20),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () => authModel.logout(),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0, // Убирает тень
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                        padding: EdgeInsetsGeometry.all(10),
+                        
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.logout, color: Colors.red,),
+                          SizedBox(width: 10),
+                          Text('Выход', style: TextStyle(fontSize: 20, color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ),
                 ]),
               ),
             ],

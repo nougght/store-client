@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'classes.dart';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -6,32 +7,32 @@ import 'product_page.dart';
 
 import 'package:provider/provider.dart';
 import 'models/cart.dart';
+import 'models/auth.dart';
 import 'package:http/http.dart' as http;
 
 class ProductCard extends StatefulWidget {
-  const ProductCard({super.key, required this.product, this.hasImage = false});
+  ProductCard({super.key, required this.product});
 
   final Product product;
-  final bool hasImage;
+  late bool hasImage = true;
 
   @override
   State<ProductCard> createState() => _ProductCardState();
 }
 
 class _ProductCardState extends State<ProductCard> {
-  late bool hasImage;
   late bool isInFavourite;
   late List<Image> images;
   int _imageIndex = 0;
   late bool isInCart;
   late int quantityInCart;
+  late bool isImagesLoaded = false;
 
   late TextEditingController textController;
 
   @override
   void initState() {
     super.initState();
-    hasImage = widget.hasImage;
 
     images = [
       // Container(height: 700, width: 700, color: Colors.blue),
@@ -50,7 +51,9 @@ class _ProductCardState extends State<ProductCard> {
       Image.asset("assets/images/3.jpg", fit: BoxFit.contain),
       Image.asset("assets/images/0.png", fit: BoxFit.contain),
     ];
-    base64toPng(widget.product.images);
+    isImagesLoaded = true;
+
+    // base64toPng(widget.product.images);
 
     // loadImage();
   }
@@ -69,9 +72,7 @@ class _ProductCardState extends State<ProductCard> {
       ).resolve(ImageConfiguration.empty);
       stream.addListener(
         ImageStreamListener((ImageInfo info, bool _) {
-          debugPrint(
-            "Real image size: ${info.image.width} x ${info.image.height}\n",
-          );
+          debugPrint("Real image size: ${info.image.width} x ${info.image.height}\n");
         }),
       );
     }
@@ -105,31 +106,27 @@ class _ProductCardState extends State<ProductCard> {
       // );
     }
 
-    hasImage = true;
+    // isImagesLoaded = true;
   }
 
   @override
   Widget build(BuildContext context) {
     final cartModel = Provider.of<CartModel>(context);
+    final authModel = Provider.of<AuthModel>(context);
 
-    isInFavourite = false;
+    isInFavourite = authModel.isProductInFavourites(widget.product.id);
+
     isInCart = cartModel.isProductInCart(widget.product.id);
-    
-    quantityInCart = isInCart
-        ? cartModel.getProductQuantity(widget.product.id)
-        : 0;
-    
-    textController = TextEditingController(
-      text: isInCart ? quantityInCart.toString() : "1",
-    );
-    
+
+    quantityInCart = isInCart ? cartModel.getProductQuantity(widget.product.id) : 0;
+
+    textController = TextEditingController(text: isInCart ? quantityInCart.toString() : "1");
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => ProductPage(product: widget.product),
-          ),
+          MaterialPageRoute(builder: (_) => ProductPage(product: widget.product)),
         );
       },
       child: Card(
@@ -142,6 +139,7 @@ class _ProductCardState extends State<ProductCard> {
 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+
           // mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // пробовал sizedbox + layoutbuilder, не получилось сделать квадрат
@@ -149,17 +147,17 @@ class _ProductCardState extends State<ProductCard> {
               aspectRatio: 1,
               child: Stack(
                 children: [
-                  PageView.builder(
-                    padEnds: false,
-                    onPageChanged: (value) {
-                      setState(() {
-                        _imageIndex = value;
-                      });
-                    },
-                    itemCount: images.length,
-                    itemBuilder: (context, index) => ClipRRect(
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
-                      child: Container(
+                  ClipRRect(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                    child: PageView.builder(
+                      padEnds: false,
+                      onPageChanged: (value) {
+                        setState(() {
+                          _imageIndex = value;
+                        });
+                      },
+                      itemCount: widget.hasImage ? images.length : 1,
+                      itemBuilder: (context, index) => Container(
                         margin: EdgeInsetsGeometry.all(0),
                         padding: EdgeInsetsGeometry.all(0),
                         decoration: BoxDecoration(
@@ -169,11 +167,15 @@ class _ProductCardState extends State<ProductCard> {
                           // ),
                           // border: BoxBorder.all(width: 1)
                         ),
-                        child: images[index],
+                        child: widget.hasImage
+                            ? isImagesLoaded
+                                  ? images[index]
+                                  : Center(child: CircularProgressIndicator())
+                            : Placeholder(),
                       ),
                     ),
                   ),
-                  if (images.length > 1)
+                  if (widget.hasImage && images.length > 1)
                     Positioned(
                       bottom: 5,
                       left: 0,
@@ -182,8 +184,9 @@ class _ProductCardState extends State<ProductCard> {
                         child: Container(
                           decoration: BoxDecoration(
                             color: Color.fromARGB(120, 100, 100, 100),
-                            borderRadius: BorderRadius.circular(2),
+                            borderRadius: BorderRadius.circular(8),
                           ),
+                          padding: EdgeInsets.all(1.5),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -192,25 +195,12 @@ class _ProductCardState extends State<ProductCard> {
                                 child: Container(
                                   width: index == _imageIndex ? 8 : 4,
                                   height: index == _imageIndex ? 8 : 4,
-                                  margin: EdgeInsets.symmetric(
-                                    horizontal: 3,
-                                    vertical: 2,
-                                  ),
+                                  margin: EdgeInsets.symmetric(horizontal: 3, vertical: 2),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: index == _imageIndex
-                                        ? const Color.fromARGB(
-                                            255,
-                                            239,
-                                            46,
-                                            46,
-                                          ).withValues(alpha: 0.5)
-                                        : const Color.fromARGB(
-                                            255,
-                                            225,
-                                            225,
-                                            225,
-                                          ),
+                                        ? const Color.fromARGB(201, 235, 48, 48)
+                                        : const Color.fromARGB(201, 225, 225, 225),
                                   ),
                                 ),
                               );
@@ -224,17 +214,25 @@ class _ProductCardState extends State<ProductCard> {
                     right: 5,
                     child: IconButton(
                       // style: ButtonStyle(backgroundColor: WidgetStateColor.resolveWith(Colors.white)),
-                      onPressed: () {
-                        setState(() {
-                          isInFavourite = !isInFavourite;
-                        });
+                      onPressed: () async {
+                        if (isInFavourite) {
+                          if (await authModel.deleteFromFavourites(widget.product.id)) {
+                            setState(() {
+                              isInFavourite = false;
+                            });
+                          }
+                        } else if (await authModel.addToFavourites(
+                          widget.product.id,
+                        )) {
+                          setState(() {
+                            isInFavourite = true;
+                          });
+                        }
+                        ;
                       },
                       icon: isInFavourite
                           ? Icon(Icons.bookmark_rounded, color: Colors.amber)
-                          : Icon(
-                              Icons.bookmark_outline_rounded,
-                              color: Colors.grey,
-                            ),
+                          : Icon(Icons.bookmark_outline_rounded, color: Colors.grey),
                     ),
                   ),
                 ],
@@ -248,14 +246,17 @@ class _ProductCardState extends State<ProductCard> {
                   children: [
                     Text(
                       widget.product.price.toStringAsFixed(2) + ' ₽',
-                      style: TextStyle(fontSize: 25),
+                      style: TextStyle(
+                        fontSize: 22,
+                        color: Theme.of(context).colorScheme.onSecondary,
+                      ),
                       textAlign: TextAlign.left,
                     ),
                     Text(
                       widget.product.name,
                       style: TextStyle(fontSize: 17, height: 1),
                       textAlign: TextAlign.left,
-                      maxLines: 2,
+                      maxLines: 1,
                     ),
                     Text(
                       "${widget.product.quantity} ${widget.product.unit}",
@@ -267,108 +268,138 @@ class _ProductCardState extends State<ProductCard> {
                 ),
               ),
             ),
-            Container(
-              padding: EdgeInsetsGeometry.only(left: 5, right: 5, bottom: 5),
-              child: !Provider.of<CartModel>(context).cartLoaded ||
-                      !isInCart
-                  ? ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsetsGeometry.all(0),
-                      ),
-                      onPressed: () async {
-                        await Provider.of<CartModel>(
-                          context,
-                          listen: false,
-                        ).addToCart(widget.product);
-
-                        // Provider.of<CartModel>(
-                        //   context,
-                        //   listen: false,
-                        // ).fetchCartItems();
-                        setState(() {
-                          isInCart = true;
-                          quantityInCart++;
-                          textController.text = quantityInCart.toString();
-
-                          // for (var i = 0; i < 3; i++) {
-                          //   debugPrint(
-                          //     '${images[i].width} * ${images[i].height}\n',
-                          //   );
-                          // }
-                        });
-                      },
-                      child: Text("В корзину"),
-                    )
-                  : Row(
-                      children: [
-                        IconButton(
-                          onPressed: () async {
-                            
-                            if (quantityInCart <= 1) {
-                              isInCart = false;
-                              if (await context.read<CartModel>().deleteFromCart(
-                                widget.product,
-                              )) {
-                                setState(() {
-                                  quantityInCart = 0;
-                                  textController.text = "1";
-                                  isInCart = false;
-                                });
-                              }
-                            } else {
-                              if (await context.read<CartModel>().updateCartItemQuantity(
-                                widget.product,
-                                quantityInCart,
-                              )) {
-                                setState(() {
-                                  quantityInCart--;
-                                  textController.text = quantityInCart.toString();
-                                });
-
-                              }
-                            }
-                          },
-                          icon: Icon(Icons.remove),
+            AspectRatio(
+              aspectRatio: 3.5,
+              child: Container(
+                // color: Colors.amber,
+                padding: EdgeInsetsGeometry.only(left: 5, right: 5, bottom: 5),
+                margin: EdgeInsets.all(0),
+                child: !Provider.of<CartModel>(context).cartLoaded || !isInCart
+                    ? ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsetsGeometry.all(0),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        Expanded(
-                          child: TextField(
-                            controller: textController,
-                            style: TextStyle(fontSize: 15),
-                            decoration: InputDecoration(isDense: true),
-                            onSubmitted: (value) {
-                              int newQuantity = int.tryParse(value) ?? 1;
-                              if (newQuantity < 1) {
-                                newQuantity = 1;
-                              }
-                              setState(() {
-                                quantityInCart = newQuantity;
-                                textController.text = quantityInCart.toString();
-                              });
-                              context.read<CartModel>().updateCartItemQuantity(
-                                widget.product,
-                                newQuantity,
-                              );
-                            },
+                        onPressed: () async {
+                          await Provider.of<CartModel>(
+                            context,
+                            listen: false,
+                          ).addToCart(widget.product);
+
+                          // Provider.of<CartModel>(
+                          //   context,
+                          //   listen: false,
+                          // ).fetchCartItems();
+                          setState(() {
+                            isInCart = true;
+                            quantityInCart++;
+                            textController.text = quantityInCart.toString();
+
+                            // for (var i = 0; i < 3; i++) {
+                            //   debugPrint(
+                            //     '${images[i].width} * ${images[i].height}\n',
+                            //   );
+                            // }
+                          });
+                        },
+                        child: Text("В корзину", style: TextStyle(fontSize: 22)),
+                      )
+                    : Card(
+                        color: Theme.of(context).colorScheme.secondary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadiusGeometry.circular(99),
+                        ),
+                        margin: EdgeInsets.all(0),
+                        child: Padding(
+                          padding: EdgeInsetsGeometry.all(3),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                padding: EdgeInsets.all(7),
+                                constraints: BoxConstraints(),
+                                style: IconButton.styleFrom(
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () async {
+                                  if (quantityInCart <= 1) {
+                                    isInCart = false;
+                                    if (await context.read<CartModel>().deleteFromCart(
+                                      widget.product,
+                                    )) {
+                                      setState(() {
+                                        quantityInCart = 0;
+                                        textController.text = "1";
+                                        isInCart = false;
+                                      });
+                                    }
+                                  } else {
+                                    if (await context.read<CartModel>().updateCartItemQuantity(
+                                      widget.product,
+                                      quantityInCart - 1,
+                                    )) {
+                                      setState(() {
+                                        quantityInCart--;
+                                        textController.text = quantityInCart.toString();
+                                      });
+                                    }
+                                  }
+                                },
+                                icon: Icon(Icons.remove),
+                                iconSize: 25,
+                              ),
+                              Expanded(
+                                child: TextField(
+                                  controller: textController,
+                                  textAlign: TextAlign.center,
+                                  textAlignVertical: TextAlignVertical.center,
+                                  style: TextStyle(fontSize: 20, height: 1),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    // border: OutlineInputBorder(),
+                                    // contentPadding: EdgeInsets.all(0),
+                                  ),
+                                  onSubmitted: (value) {
+                                    int newQuantity = int.tryParse(value) ?? 1;
+                                    if (newQuantity < 1) {
+                                      newQuantity = 1;
+                                    }
+                                    setState(() {
+                                      quantityInCart = newQuantity;
+                                      textController.text = quantityInCart.toString();
+                                    });
+                                    context.read<CartModel>().updateCartItemQuantity(
+                                      widget.product,
+                                      newQuantity,
+                                    );
+                                  },
+                                ),
+                              ),
+                              IconButton(
+                                padding: EdgeInsets.all(7),
+                                constraints: BoxConstraints(),
+                                style: IconButton.styleFrom(
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () async {
+                                  if (await context.read<CartModel>().updateCartItemQuantity(
+                                    widget.product,
+                                    quantityInCart + 1,
+                                  )) {
+                                    setState(() {
+                                      quantityInCart++;
+                                      textController.text = quantityInCart.toString();
+                                    });
+                                  }
+                                },
+                                icon: Icon(Icons.add),
+                                iconSize: 25,
+                              ),
+                            ],
                           ),
                         ),
-                        IconButton(
-                          onPressed: () async {
-                            if (await context
-                                .read<CartModel>()
-                                .updateCartItemQuantity(
-                                  widget.product,
-                                  quantityInCart + 1,
-                                )) {
-                              setState(() {
-                                quantityInCart++;
-                                textController.text = quantityInCart.toString();
-                              });
-                            }
-                          },
-                          icon: Icon(Icons.add),
-                        ),
-                      ],
-                    ),
+                      ),
+              ),
             ),
           ],
         ),
@@ -401,20 +432,13 @@ class _InCartProductCardState extends State<InCartProductCard> {
     final CartModel cartModel = Provider.of<CartModel>(context);
     final product = cartModel.getProductById(widget.productId);
     final cartItem = cartModel.getCartItemById(widget.cartItemId);
-    textController  = TextEditingController(
-      text: cartItem.quantity.toString(),
-    );
+    textController = TextEditingController(text: cartItem.quantity.toString());
 
     // TODO: implement build
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ProductPage(product: product),
-          ),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => ProductPage(product: product)));
       },
       child: LayoutBuilder(
         builder: (context, constraits) {
@@ -436,13 +460,11 @@ class _InCartProductCardState extends State<InCartProductCard> {
                         Container(
                           margin: EdgeInsetsGeometry.only(right: 5),
                           child: SizedBox(
-                            width: constraits.maxWidth / 2.5,
+                            width: constraits.maxWidth / 3,
                             child: AspectRatio(
                               aspectRatio: 1,
                               child: ClipRRect(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(10),
-                                ),
+                                borderRadius: BorderRadius.all(Radius.circular(10)),
                                 child: Container(
                                   margin: EdgeInsetsGeometry.all(0),
                                   padding: EdgeInsetsGeometry.only(),
@@ -461,17 +483,19 @@ class _InCartProductCardState extends State<InCartProductCard> {
                         ),
                         Expanded(
                           child: Container(
-                            height: constraits.maxWidth / 2.5,
+                            height: constraits.maxWidth / 3,
+                            // padding: EdgeInsets.all(0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    mainAxisSize: MainAxisSize.max,
                                     children: [
-                                      Text("${product.price.toStringAsFixed(2)} ₽",
+                                      Text(
+                                        "${product.price.toStringAsFixed(2)} ₽",
                                         style: TextStyle(
                                           fontSize: 30,
                                           // backgroundColor: Colors.amber,
@@ -481,7 +505,7 @@ class _InCartProductCardState extends State<InCartProductCard> {
                                       ),
                                       Text(
                                         product.name,
-                                        style: TextStyle(fontSize: 20),
+                                        style: TextStyle(fontSize: 20, height: 1),
                                         textAlign: TextAlign.left,
                                         maxLines: 1,
                                       ),
@@ -490,6 +514,7 @@ class _InCartProductCardState extends State<InCartProductCard> {
                                         style: TextStyle(
                                           fontSize: 15,
                                           color: Colors.blueGrey,
+                                          // height: 1
                                         ),
                                         textAlign: TextAlign.left,
                                         maxLines: 1,
@@ -497,136 +522,188 @@ class _InCartProductCardState extends State<InCartProductCard> {
                                     ],
                                   ),
                                 ),
-                                IntrinsicHeight(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.max,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    spacing: 5,
-                                    children: [
-                                      Expanded(
-                                        child: ElevatedButton(
+                                Container(
+                                  height: 40,
+                                  // color: Colors.amber,
+                                  child: IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      spacing: 2,
+
+                                      children: [
+                                        ElevatedButton(
                                           onPressed: () {},
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                const Color.fromARGB(
-                                                  255,
-                                                  160,
-                                                  213,
-                                                  159,
-                                                ),
+                                            backgroundColor: const Color.fromARGB(
+                                              255,
+                                              160,
+                                              213,
+                                              159,
+                                            ),
                                           ),
                                           child: Text(
                                             "Купить",
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              height: 2,
-                                            ),
+                                            style: TextStyle(fontSize: 18, height: 1),
                                           ),
                                         ),
-                                      ),
-                                      Expanded(
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.cyanAccent,
-                                            borderRadius: BorderRadius.all(
-                                              Radius.circular(999),
+                                        Expanded(
+                                          child: Card(
+                                            color: Theme.of(context).colorScheme.secondary,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadiusGeometry.circular(99),
                                             ),
-                                          ),
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
-                                            children: [
-                                              IconButton(
-                                                padding: EdgeInsets.all(5),
-                                                constraints: BoxConstraints(),
-                                                onPressed: () {
-                                                  setState(() {
-                                                    cartItem.quantity--;
-                                                    textController.text = cartItem
-                                                        .quantity
-                                                        .toString();
-                                                    if (cartItem
-                                                            .quantity <=
-                                                        0) {
-                                                      context
-                                                          .read<CartModel>()
-                                                          .deleteFromCart(
+                                            margin: EdgeInsets.all(0),
+                                            child: Padding(
+                                              padding: EdgeInsetsGeometry.all(3),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                // spacing: 3,
+                                                children: [
+                                                  IconButton(
+                                                    padding: EdgeInsets.all(8),
+                                                    constraints: BoxConstraints(),
+                                                    style: IconButton.styleFrom(
+                                                      tapTargetSize:
+                                                          MaterialTapTargetSize.shrinkWrap,
+                                                      backgroundColor: const Color.fromARGB(
+                                                        255,
+                                                        255,
+                                                        255,
+                                                        255,
+                                                      ).withAlpha(150),
+                                                    ),
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        cartItem.quantity--;
+                                                        textController.text = cartItem.quantity
+                                                            .toString();
+                                                        if (cartItem.quantity <= 0) {
+                                                          context.read<CartModel>().deleteFromCart(
                                                             product,
                                                           );
-                                                    } else {
+                                                        } else {
+                                                          context
+                                                              .read<CartModel>()
+                                                              .updateCartItemQuantity(
+                                                                product,
+                                                                cartItem.quantity,
+                                                              );
+                                                        }
+                                                      });
+                                                    },
+                                                    icon: Icon(Icons.remove),
+                                                    iconSize: 16,
+                                                  ),
+                                                  IntrinsicWidth(
+                                                    child: TextField(
+                                                      keyboardType:
+                                                          TextInputType.numberWithOptions(),
+                                                      inputFormatters: [
+                                                        FilteringTextInputFormatter.digitsOnly,
+                                                      ],
+                                                      decoration: InputDecoration(
+                                                        fillColor: Color.fromARGB(
+                                                          255,
+                                                          255,
+                                                          255,
+                                                          255,
+                                                        ).withAlpha(100),
+                                                        filled: true,
+                                                        focusedBorder: OutlineInputBorder(
+                                                          borderSide: BorderSide(
+                                                            width: 2,
+                                                            color: const Color.fromARGB(
+                                                              255,
+                                                              32,
+                                                              32,
+                                                              32,
+                                                            ).withAlpha(150),
+                                                          ),
+                                                          borderRadius: BorderRadius.circular(10),
+                                                        ),
+                                                        enabledBorder: OutlineInputBorder(
+                                                          borderSide: BorderSide(
+                                                            width: 2,
+                                                            color: const Color.fromARGB(
+                                                              197,
+                                                              111,
+                                                              111,
+                                                              111,
+                                                            ).withAlpha(150),
+                                                          ),
+                                                          borderRadius: BorderRadius.circular(10),
+                                                        ),
+
+                                                        counterText: "",
+                                                        contentPadding: EdgeInsets.only(
+                                                          left: 10,
+                                                          right: 7,
+                                                        ),
+                                                        // isDense: true,
+                                                      ),
+
+                                                      maxLines: 1,
+                                                      maxLength: 2,
+                                                      style: TextStyle(fontSize: 18, height: 1),
+                                                      textAlign: TextAlign.center,
+                                                      textAlignVertical: TextAlignVertical.center,
+                                                      controller: textController,
+                                                      onSubmitted: (value) {
+                                                        int newQuantity = int.tryParse(value) ?? 1;
+                                                        if (newQuantity < 1) {
+                                                          newQuantity = 1;
+                                                        }
+                                                        setState(() {
+                                                          cartItem.quantity = newQuantity;
+                                                          textController.text = newQuantity
+                                                              .toString();
+                                                        });
+                                                        context
+                                                            .read<CartModel>()
+                                                            .updateCartItemQuantity(
+                                                              product,
+                                                              newQuantity,
+                                                            );
+                                                      },
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    padding: EdgeInsets.all(8),
+                                                    constraints: BoxConstraints(),
+                                                    style: IconButton.styleFrom(
+                                                      tapTargetSize:
+                                                          MaterialTapTargetSize.shrinkWrap,
+                                                      backgroundColor: const Color.fromARGB(
+                                                        255,
+                                                        255,
+                                                        255,
+                                                        255,
+                                                      ).withAlpha(150),
+                                                    ),
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        cartItem.quantity++;
+                                                        textController.text = cartItem.quantity
+                                                            .toString();
+                                                      });
                                                       context
                                                           .read<CartModel>()
                                                           .updateCartItemQuantity(
                                                             product,
-                                                            cartItem
-                                                                .quantity,
+                                                            cartItem.quantity,
                                                           );
-                                                    }
-                                                  });
-                                                },
-                                                icon: Icon(Icons.remove),
-                                                iconSize: 15,
-                                              ),
-                                              Expanded(
-                                                child: TextField(
-                                                  decoration: InputDecoration(
-                                                    isDense: true,
+                                                    },
+                                                    icon: Icon(Icons.add),
+                                                    iconSize: 16,
                                                   ),
-                                                  style: TextStyle(
-                                                    fontSize: 15,
-                                                  ),
-                                                  controller: textController,
-                                                  onSubmitted: (value) {
-                                                    int newQuantity =
-                                                        int.tryParse(value) ??
-                                                        1;
-                                                    if (newQuantity < 1) {
-                                                      newQuantity = 1;
-                                                    }
-                                                    setState(() {
-                                                      cartItem.quantity =
-                                                          newQuantity;
-                                                      textController.text =
-                                                          newQuantity
-                                                              .toString();
-                                                    });
-                                                    context
-                                                        .read<CartModel>()
-                                                        .updateCartItemQuantity(
-                                                          product,
-                                                          newQuantity,
-                                                        );
-                                                  },
-                                                ),
+                                                ],
                                               ),
-                                              IconButton(
-                                                padding: EdgeInsets.all(5),
-                                                constraints: BoxConstraints(),
-                                                onPressed: () {
-                                                  setState(() {
-                                                    cartItem.quantity++;
-                                                    textController.text = cartItem
-                                                        .quantity
-                                                        .toString();
-                                                  });
-                                                  context
-                                                      .read<CartModel>()
-                                                      .updateCartItemQuantity(
-                                                        product,
-                                                        cartItem
-                                                            .quantity,
-                                                      );
-                                                },
-                                                icon: Icon(Icons.add),
-                                                iconSize: 15,
-                                              ),
-                                            ],
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],

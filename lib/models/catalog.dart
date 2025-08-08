@@ -7,6 +7,7 @@ import 'package:mobile_store/services/api_service.dart';
 
 // class CartItem
 
+
 class CatalogModel with ChangeNotifier {
   final ApiService api;
   bool productsLoaded = false;
@@ -15,6 +16,13 @@ class CatalogModel with ChangeNotifier {
   String searchQuery = '';
   List<Product> _products = [];
   List<classes.Category> categories = [];
+  int? selectedSort = 0;
+  
+  void setSort(int? value)
+  {
+    selectedSort = value;
+    notifyListeners();
+  }
 
   CatalogModel(this.api);
 
@@ -26,6 +34,14 @@ class CatalogModel with ChangeNotifier {
           product.name.toLowerCase().contains(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     }).toList();
+    filtered.sort((a, b) {
+      switch(selectedSort) {
+        case 0: return a.price.compareTo(b.price);
+        case 1: return b.price.compareTo(a.price);
+        case 2: return a.creationDate.compareTo(b.creationDate);
+        default: return a.creationDate.compareTo(b.creationDate);
+      }
+    });
     return filtered;
   }
 
