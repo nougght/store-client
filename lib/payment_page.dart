@@ -1,9 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'models/cart.dart';
+import 'models/auth.dart';
+import 'models/orders.dart';
+import 'models/product.dart';
+import 'map_page.dart';
+import 'order_page.dart';
 import 'classes.dart';
 
 // Страница оплаты заказа
+
+Future<List<OrderItem>> cartToOrderItems(
+  List<CartItem> items,
+  ProductProvider provider,
+  String orderId,
+) async {
+  List<OrderItem> result = [];
+  for (var item in items) {
+    Product? product = await provider.getProductById(item.productId);
+    if (product == null) {
+      debugPrint('Продукт из заказа не найден: ${item.productId}');
+      continue;
+    }
+    result.add(
+      OrderItem(
+        orderId: orderId,
+        productId: item.productId,
+        quantity: item.quantity,
+        price: product.price,
+      ),
+    );
+  }
+  return result;
+}
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({super.key, this.product = null, this.quantity = null});
@@ -21,7 +50,8 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   Widget build(BuildContext context) {
     final cartModel = Provider.of<CartModel>(context);
-
+    final orders = context.watch<OrderModel>();
+    final authModel = Provider.of<AuthModel>(context);
     return Scaffold(
       body: Stack(
         children: [
@@ -49,25 +79,36 @@ class _PaymentPageState extends State<PaymentPage> {
                   // выбор адреса доставки
                   Container(
                     padding: EdgeInsetsGeometry.all(10),
-                    child: Text(
-                      "Адрес доставки",
-                      style: TextStyle(fontSize: 30),
-                    ),
+                    child: Text("Адрес доставки", style: TextStyle(fontSize: 30)),
                   ),
                   ElevatedButton(
-                    onPressed: () => print('Кнопка 1'),
+                    onPressed: () async {
+                      List<dynamic>? result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MapPage(
+                            selectedAdress: authModel.address,
+                            point: authModel.adressCoord,
+                          ),
+                        ),
+                      );
+                      if (result != null) {
+                        setState(() {
+                          authModel.address = result[0];
+                          authModel.adressCoord = result[1];
+                        });
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       elevation: 0, // Убирает тень
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                       padding: EdgeInsetsGeometry.all(10),
                     ),
                     child: Row(
                       children: [
                         Icon(Icons.navigation_rounded),
                         SizedBox(width: 10),
-                        Text('Выбрать адрес', style: TextStyle(fontSize: 20)),
+                        Text(authModel.address ?? "Выбрать адрес", style: TextStyle(fontSize: 20)),
                         Spacer(),
                         Icon(Icons.chevron_right),
                       ],
@@ -77,10 +118,7 @@ class _PaymentPageState extends State<PaymentPage> {
                   // способ оплаты
                   Container(
                     padding: EdgeInsetsGeometry.all(10),
-                    child: Text(
-                      "Способ оплаты",
-                      style: TextStyle(fontSize: 30),
-                    ),
+                    child: Text("Способ оплаты", style: TextStyle(fontSize: 30)),
                   ),
                   // горизонтальный список с вариантами оплаты
                   Container(
@@ -104,10 +142,7 @@ class _PaymentPageState extends State<PaymentPage> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(Icons.credit_card, size: 50),
-                                    Text(
-                                      "Карта",
-                                      style: TextStyle(fontSize: 20),
-                                    ),
+                                    Text("Карта", style: TextStyle(fontSize: 20)),
                                   ],
                                 ),
                               ),
@@ -172,16 +207,73 @@ class _PaymentPageState extends State<PaymentPage> {
                   //   topRight: Radius.circular(10),
                   // ),
                 ),
-                padding: EdgeInsetsGeometry.only(
-                  left: 5,
-                  right: 5,
-                  top: 5,
-                  bottom: 20,
-                ),
+                padding: EdgeInsetsGeometry.only(left: 5, right: 5, top: 5, bottom: 20),
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (cartModel.cartItems.isNotEmpty) {
-                      // Navigator.pushNamed(context, '/checkout');
+                      if (authModel.address == null) {
+                        List<dynamic>? result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MapPage(
+                              selectedAdress: authModel.address,
+                              point: authModel.adressCoord,
+                            ),
+                          ),
+                        );
+                        if (result != null) {
+                          setState(() {
+                            authModel.address = result[0];
+                            authModel.adressCoord = result[1];
+                          });
+                        }
+                      } else {
+                        Order order = Order(
+                          userId: authModel.currentUser!.userId,
+                          totalPrice: cartModel.totalPrice,
+                          deliveryPrice: cartModel.deliveryPrice,
+                          paymentMethod: "post",
+                          createdAt: DateTime.now(),
+                          updatedAt: DateTime.now(),
+                        );
+                        String orderId = await orders.addOrder(order);
+
+                        List<OrderItem> items = await cartToOrderItems(
+                          cartModel.cartItems,
+                          context.read<ProductProvider>(),
+                          orderId,
+                        );
+                        order.items = items;
+                        Delivery delivery = Delivery(
+                          orderId: orderId,
+                          address: authModel.address!,
+                          latitude: authModel.adressCoord!.y,
+                          longitude: authModel.adressCoord!.x,
+                          distanceKm: 2,
+                          packageWeight: 1,
+                          packageSize: 1,
+                          // status: DeliveryStatus.created,
+                          // scheduledAt: DateTime.now(),
+                          // deliveredAt: null,
+                        );
+                        bool isSuccess = await orders.addOrderItems(items);
+                        if (isSuccess) {
+                          bool isSuccess = await orders.addDelivery(delivery);
+                          if (isSuccess) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text("Заказ создан")));
+                            cartModel.cartItems.clear();
+                          }
+                        }
+                        // доделать оплату
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderPage(order: order,),
+                          ),
+                        );
+                      }
                     } else {
                       ScaffoldMessenger.of(
                         context,

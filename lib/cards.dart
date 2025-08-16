@@ -8,8 +8,49 @@ import 'product_page.dart';
 import 'package:provider/provider.dart';
 import 'models/cart.dart';
 import 'models/auth.dart';
+import 'package:mobile_store/models/product.dart';
 import 'package:http/http.dart' as http;
 
+
+class OrderCard extends StatelessWidget {
+  OrderCard({super.key, required this.order, required this.images});
+
+  final Order order;
+  
+  final List<String> images;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            Expanded(child: Container(
+              child: Column(children: [
+                Row(children: [
+                  Text("Заказ No${order.id}", style: TextStyle(fontSize: 20),),
+                  Spacer(),
+                  Text("${order.status}", style: TextStyle(fontSize: 20),),
+                ],),
+                Row(children: [
+                  Text("Сумма: ${order.totalPrice}", style: TextStyle(fontSize: 20),),
+                  Spacer(),
+                  Text(order.delivery.address, style: TextStyle(fontSize: 20),),
+                ],)
+              ],)
+            ),),
+            Expanded(child: Container(
+              child: Row(children: [
+                for (String src in images) Image.network(src)
+              ],)
+            ),),
+          ],
+        ),
+      ),
+    );
+  }
+}
 class ProductCard extends StatefulWidget {
   ProductCard({super.key, required this.product});
 

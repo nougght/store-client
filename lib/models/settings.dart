@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:mobile_store/classes.dart' as classes;
 import 'package:mobile_store/services/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsModel with ChangeNotifier {
   final ApiService api;
@@ -28,7 +29,7 @@ class SettingsModel with ChangeNotifier {
   );
 
 
-  SettingsModel(this.api);
+  SettingsModel(this.api, this.isDarkMode);
 
   ThemeData get currentTheme {
     return isDarkMode ? darkTheme : lightTheme;
@@ -37,6 +38,12 @@ class SettingsModel with ChangeNotifier {
   void setTheme({bool isDark = false}) {
     isDarkMode = isDark;
     notifyListeners();
+    _saveTheme();
+  }
+
+  void _saveTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', isDarkMode);
   }
 
   Future<void> fetchSettings() async {

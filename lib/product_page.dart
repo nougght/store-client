@@ -29,29 +29,54 @@ class _ProductPageState extends State<ProductPage> {
   @override
   void initState() {
     super.initState();
-
-    images = [
-      // Container(height: 700, width: 700, color: Colors.blue),
-      // Container(
-      //   height: 1000,
-      //   width: 700,
-      //   color: const Color.fromARGB(255, 243, 33, 33),
-      // ),
-      // Container(
-      //   height: 700,
-      //   width: 1000,
-      //   color: const Color.fromARGB(255, 33, 243, 47),
-      // ),
-      Image.asset("assets/images/1.jpg", fit: BoxFit.contain),
-      Image.asset("assets/images/2.jpg", fit: BoxFit.contain),
-      Image.asset("assets/images/3.jpg", fit: BoxFit.contain),
-      Image.asset("assets/images/0.png", fit: BoxFit.contain),
-    ];
-    isImagesLoaded = true;
+    images = [];
+    // images = [
+    //   // Container(height: 700, width: 700, color: Colors.blue),
+    //   // Container(
+    //   //   height: 1000,
+    //   //   width: 700,
+    //   //   color: const Color.fromARGB(255, 243, 33, 33),
+    //   // ),
+    //   // Container(
+    //   //   height: 700,
+    //   //   width: 1000,
+    //   //   color: const Color.fromARGB(255, 33, 243, 47),
+    //   // ),
+    // ];
 
     isInFavourite = false;
+    _loadImages();
+    isImagesLoaded = true;
 
     // base64toPng(widget.product.images);
+  }
+
+  @override
+  void didChangeDependencies() {
+    // TODO: implement didChangeDependencies
+    super.didChangeDependencies();
+  }
+
+  void _loadImages() async {
+    try {
+      List<String> urls = await widget.product.getImages();
+      setState(() {
+        images = List.generate(
+          urls.length,
+          (index) => Image.network(
+            urls[index],
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Placeholder(),
+          ),
+        );
+        if (images.isEmpty) {
+          widget.hasImage = false;
+        }
+      });
+      debugPrint(images.length.toString());
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   }
 
   @override

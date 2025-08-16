@@ -5,12 +5,16 @@ import 'package:mobile_store/classes.dart';
 import 'package:mobile_store/services/api_service.dart';
 import 'cart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math';
 
 class AuthModel with ChangeNotifier {
   final ApiService api;
 
   User? currentUser;
   Session? currentSession;
+
+  Point<double>? adressCoord;
+  String? address;
 
   bool _isSplashScreen = false;
   bool _isAuth = false;
@@ -20,7 +24,6 @@ class AuthModel with ChangeNotifier {
 
   bool isRegistration = false;
   bool favouritesLoaded = false;
-
 
   List<FavouriteItem> favourites = [];
 
@@ -36,11 +39,8 @@ class AuthModel with ChangeNotifier {
     currentUser = null;
     currentSession = null;
     _isSplashScreen = true;
-
   }
 
-  
-  
   Future<void> _saveToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', currentSession!.token);
@@ -108,7 +108,6 @@ class AuthModel with ChangeNotifier {
       }
     }
 
-    
     try {
       final response = await api.register(currentUser!, code!);
       currentUser = response[0];
@@ -126,7 +125,6 @@ class AuthModel with ChangeNotifier {
       return false;
     }
   }
-
 
   // Future<void> login(String number, String code) async {
   //   // временно
@@ -146,7 +144,7 @@ class AuthModel with ChangeNotifier {
 
     try {
       final response = await api.login(currentUser!, code!);
-      
+
       currentUser = response[0];
       currentSession = response[1];
       api.setToken(currentSession!.token);
@@ -159,7 +157,26 @@ class AuthModel with ChangeNotifier {
       debugPrint('Ошибка при входе в аккаунт: $e');
       return false;
     }
+  }
 
+  Future<bool> deleteAccount() async {
+    // if (currentUser == null) {
+    //   _isAuth = false;
+    //   notifyListeners();
+    //   return false;
+    // }
+    final userId = currentUser == null ? "" : currentUser!.userId;
+    if (await logout()) {
+      try {
+        await api.deleteAccount(userId);
+        return true;
+      } catch (e) {
+        debugPrint('Ошибка при удалении пользователя: $e');
+        return false;
+      }
+    }
+    debugPrint('Ошибка при удалении пользователя');
+    return false;
   }
 
   Future<void> _resetToken() async {
@@ -170,7 +187,9 @@ class AuthModel with ChangeNotifier {
 
   Future<bool> logout() async {
     try {
-      await api.logout(currentUser!.userId);
+      if (currentUser != null && _isAuth != false) {
+        await api.logout(currentUser!.userId);
+      }
       _isAuth = false;
       currentUser = null;
       currentSession = null;
@@ -195,7 +214,9 @@ class AuthModel with ChangeNotifier {
     }
     _isSplashScreen = true;
     var timePassed = false;
-    final timer = Future.delayed(Duration(seconds: 1), (){timePassed = true;});
+    final timer = Future.delayed(Duration(seconds: 1), () {
+      timePassed = true;
+    });
     try {
       final response = await api.autoLogin(userId, token);
 

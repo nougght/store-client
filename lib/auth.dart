@@ -123,7 +123,7 @@ class _LoginFormState extends State<LoginForm> {
       final channel = _isEmail[1] ? "email" : "phone";
       bool res = await Provider.of<AuthModel>(context, listen: false).sendCode(recipient, channel);
       if (!res) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка при отправке кода' + Provider.of<AuthModel>(context, listen: false).error)));
+        // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка при отправке кода' + Provider.of<AuthModel>(context, listen: false).error)));
       }
     }
   }

@@ -35,6 +35,7 @@ class CategoryCard extends StatelessWidget {
       base64.decode(str);
       return true;
     } catch (e) {
+      debugPrint(e.toString());
       return false;
     }
   }
@@ -170,7 +171,9 @@ class _CalalogPageState extends State<CatalogPage> {
     return Consumer<CatalogModel>(
       builder: (context, catalogModel, child) {
         return Scaffold(
-          body: Stack(
+          body: RefreshIndicator(
+            onRefresh: () => _loadCatalog(),
+            child: Stack(
             children: [
               CustomScrollView(
                 slivers: [
@@ -457,7 +460,7 @@ class _CalalogPageState extends State<CatalogPage> {
               ),
             ],
           ),
-        );
+        ));
       },
     );
   }

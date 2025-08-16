@@ -14,26 +14,39 @@ import 'main_page.dart';
 import 'profile_page.dart';
 import 'auth.dart';
 import 'models/auth.dart';
+import 'models/orders.dart';
+import 'models/product.dart';
+
 import 'catalog_page.dart';
 import 'models/catalog.dart';
 import 'models/settings.dart';
+// import 'package:yandex_maps_mapkit_lite/init.dart' as init;
+import 'package:yandex_maps_mapkit/init.dart' as init;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('token') ?? '';
   final userId = prefs.getString('userId') ?? '';
+  final isDarkMode = prefs.getBool('isDarkMode') ?? false;
+
+  await dotenv.load(fileName: ".env");
+  final akey = dotenv.env['YANDEX_MAPKIT_KEY'] ?? '';
+  await init.initMapkit(apiKey: akey, locale: 'ru_RU');
 
   runApp(
     MultiProvider(
       providers: [
         Provider(create: (_) => ApiService()),
-        ChangeNotifierProvider(create: (context) => SettingsModel(context.read<ApiService>())),
+        ChangeNotifierProvider(create: (context) => SettingsModel(context.read<ApiService>(), token == '' ? false : isDarkMode)),
         ChangeNotifierProvider(create: (context) => CatalogModel(context.read<ApiService>())),
         ChangeNotifierProvider(create: (context) => CartModel(context.read<ApiService>())),
         ChangeNotifierProvider(
           create: (context) => AuthModel(context.read<ApiService>())..autoLogin(token, userId),
         ),
+        ChangeNotifierProvider(create: (context) => ProductProvider(apiService: context.read<ApiService>())),
+        ChangeNotifierProvider(create: (context) => OrderModel(context.read<ApiService>(), context.read<AuthModel>())),
       ],
       child: const TestApp(),
     ),
@@ -46,6 +59,7 @@ class TestApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settingsModel = Provider.of<SettingsModel>(context);
+
     return MaterialApp(
       title: 'Test',
       debugShowCheckedModeBanner: false,
@@ -103,6 +117,7 @@ class _MainScreenState extends State<MainScreen> {
     if (user.isAuth && context.read<CartModel>().cartId == null) {
       context.read<CartModel>().setCartIdByUserId(user.currentUser!.userId);
     }
+
     return user.isSplashScreen
         ? Scaffold(
             body: Center(

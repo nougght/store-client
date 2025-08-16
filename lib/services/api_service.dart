@@ -11,6 +11,7 @@ class ApiService {
 
   void setToken(String token) => this.token = token;
 
+
   Future<AuthCode> sendCode(AuthCode code) async {
     final bd = json.encode(code);
     final response = await http.post(Uri.parse("$_emUrl/auth/code/send"), body: bd);
@@ -91,6 +92,12 @@ class ApiService {
     }
   }
 
+  Future<void> deleteAccount(String userId) async {
+    final response = await http.delete(Uri.parse("$_emUrl/user/$userId"));
+    if (response.statusCode != 200) {
+      throw Exception('Ошибка: ${response.statusCode} ${response.body}');
+    }
+  }
   Future<String> checkUser(String email_or_phone) async {
     final response = await http.post(Uri.parse("$_emUrl/user/check/$email_or_phone"));
 
@@ -172,6 +179,22 @@ class ApiService {
 
   Future<List<Product>> fetchProductsByIds(String query) async {
     final response = await http.get(Uri.parse("$_emUrl/products?ids=$query"));
+    if (response.statusCode == 200) {
+      return (json.decode(response.body) as List).map((item) => Product.fromJson(item)).toList();
+    } else {
+      throw Exception('Ошибка загрузки продуктов в корзине: ${response.statusCode}');
+    }
+  }
+
+Future<List<Product>> getProductsPage({
+    required int page,
+    required int limit,
+    required Map<String, dynamic> filters,
+  }) async {
+    // В реальном API эти параметры добавляются в query string
+    // Пример: ?page=0&limit=20&sort=price_asc&category=phones
+    final response = await http.get(Uri.parse('$_emUrl/products?page=$page&limit=$limit&filters=${json.encode(filters)}'));
+
     if (response.statusCode == 200) {
       return (json.decode(response.body) as List).map((item) => Product.fromJson(item)).toList();
     } else {
@@ -281,4 +304,85 @@ class ApiService {
       throw Exception('Ошибка: ${response.statusCode} ${response.body}');
     }
   }
+
+  static Future<List<String>> GetImages(String id) async {
+    final url = Uri.parse('http://51.250.104.71:8085/products/$id/images');
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      return (json.decode(response.body)['images'] as List).map((item) => item["url"] as String).toList();
+    } else {
+      throw Exception('Ошибка загрузки изображений: ${response.statusCode} ${response.body}');
+    }
+  }
+
+
+  Future<List<Order>> fetchOrders(String userId) {
+    final url = Uri.parse('$_emUrl/order/$userId');
+    // Отправка запроса
+    return http.get(url).then((response) {
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        if (decoded == null) {
+          return [];
+        }
+        return (decoded as List).map((item) => Order.fromJson(item)).toList();
+      } else {
+        throw Exception('Ошибка загрузки заказов: ${response.statusCode} ${response.body}');
+      }
+    });
+  }
+
+  Future<String> createOrder(Order order) async {
+    final url = Uri.parse('$_emUrl/order');
+    final headers = {'Content-Type': 'application/json'};
+    final body = json.encode(order);
+    // Отправка запроса
+    final response = await http.post(url, headers: headers, body: body);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return json.decode(response.body)['id'] as String;
+    } else {
+      throw Exception('Ошибка: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  Future<OrderItem> createOrderItem(OrderItem item) async {
+    final url = Uri.parse('$_emUrl/order/items');
+    final headers = {'Content-Type': 'application/json'};
+    final body = json.encode(item);
+    // Отправка запроса
+    final response = await http.post(url, headers: headers, body: body);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return OrderItem.fromJson(  json.decode(response.body));
+    } else {
+      throw Exception('Ошибка: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  Future<String> createOrderItems(List<OrderItem> items) async {
+    final url = Uri.parse('$_emUrl/order/:id/items');
+    final headers = {'Content-Type': 'application/json'};
+    final body = json.encode(items);
+    // Отправка запроса
+    final response = await http.post(url, headers: headers, body: body);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return 'Успех: ${json.decode(response.body)}';
+    } else {
+      throw Exception('Ошибка: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  Future<String> createDelivery(Delivery delivery) async {
+    final url = Uri.parse('$_emUrl/delivery');
+    final headers = {'Content-Type': 'application/json'};
+    final body = json.encode(delivery);
+    // Отправка запроса
+    final response = await http.post(url, headers: headers, body: body);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return 'Успех: ${json.decode(response.body)}';
+    } else {
+      throw Exception('Ошибка: ${response.statusCode} ${response.body}');
+    }
+  }
 }
+
+

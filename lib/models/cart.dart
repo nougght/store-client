@@ -32,6 +32,9 @@ class CartModel with ChangeNotifier {
     });
   }
 
+  double get deliveryPrice {
+    return totalQuantity * 10;
+  }
   Product getProductById(String productId) {
     return products.firstWhere(
       (product) => product.id == productId,
@@ -50,8 +53,8 @@ class CartModel with ChangeNotifier {
     if (userId != null) {
       try {
         cartId = await api.GetCartIdByUserId(userId);
-        fetchCartItems();
-        fetchProducts();
+        await fetchCartItems();
+        await fetchProducts();
         cartLoaded = true;
       } catch (e) {
         debugPrint('Ошибка загрузки корзины: $e');
