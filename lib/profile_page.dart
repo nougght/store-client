@@ -33,11 +33,11 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
   Future<void> _loadOrders() async {
+    ordersLoaded = false;
     final orderModel = context.read<OrderModel>();
     await orderModel.fetchOrders();
 
     List<List<String>> imgs = [];
-    if (ordersLoaded) {
       for (int i = 0; i < orderModel.orders.length; i++) {
         imgs.add([]);
         for (int j = 0; j < orderModel.orders[i].items.length; j++) {
@@ -49,7 +49,7 @@ class _ProfilePageState extends State<ProfilePage> {
           }
         }
       }
-    }
+    setState(() => this.imgs = imgs,);
     ordersLoaded = true;
   }
 
@@ -57,6 +57,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final authModel = Provider.of<AuthModel>(context);
     final orderModel = Provider.of<OrderModel>(context);
+    if (orderModel.orders.length != imgs.length) {
+      _loadOrders();
+    }
     final productProvider = Provider.of<ProductProvider>(context);
     return Scaffold(
       body: Stack(
@@ -125,7 +128,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
                 SliverList(
                   delegate: SliverChildListDelegate([
-                  if (orderModel.orders.isNotEmpty)
+                  if (ordersLoaded && orderModel.orders.isNotEmpty)
                     SizedBox(
                       height: 140,
                       child: ListView.builder(

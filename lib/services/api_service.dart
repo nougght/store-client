@@ -317,7 +317,7 @@ Future<List<Product>> getProductsPage({
 
 
   Future<List<Order>> fetchOrders(String userId) {
-    final url = Uri.parse('$_emUrl/order/$userId');
+    final url = Uri.parse('$_emUrl/users/$userId/orders');
     // Отправка запроса
     return http.get(url).then((response) {
       if (response.statusCode == 200) {
