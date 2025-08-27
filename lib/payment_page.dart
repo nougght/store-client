@@ -14,10 +14,11 @@ Future<List<OrderItem>> cartToOrderItems(
   List<CartItem> items,
   ProductProvider provider,
   String orderId,
+  BuildContext context,
 ) async {
   List<OrderItem> result = [];
   for (var item in items) {
-    Product? product = await provider.getProductById(item.productId);
+    Product? product = await provider.getProductById(item.productId, context);
     if (product == null) {
       debugPrint('Продукт из заказа не найден: ${item.productId}');
       continue;
@@ -242,6 +243,7 @@ class _PaymentPageState extends State<PaymentPage> {
                           cartModel.cartItems,
                           context.read<ProductProvider>(),
                           orderId,
+                          context,
                         );
                         order.items = items;
                         Delivery delivery = Delivery(
@@ -263,15 +265,14 @@ class _PaymentPageState extends State<PaymentPage> {
                             ScaffoldMessenger.of(
                               context,
                             ).showSnackBar(SnackBar(content: Text("Заказ создан")));
-                            cartModel.cartItems.clear();
+                            cartModel.toggleSelectAll(true);
+                            cartModel.removeSelected(context);
                           }
                         }
                         // доделать оплату
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => OrderPage(order: order,),
-                          ),
+                          MaterialPageRoute(builder: (_) => OrderPage(order: order)),
                         );
                       }
                     } else {

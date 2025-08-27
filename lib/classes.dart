@@ -1,5 +1,9 @@
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:mobile_store/models/cacheManager.dart';
 import 'package:mobile_store/services/api_service.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 class Product {
   Product({
@@ -11,6 +15,7 @@ class Product {
     this.quantity = 0.0,
     this.unit = "шт",
     List<String>? images,
+    this.hasImage = true,
     this.stock = 0,
     DateTime? creationDate,
   }) : images = images ?? const [],
@@ -24,6 +29,7 @@ class Product {
   String unit;
   String categoryId;
   List<String> images;
+  bool hasImage;
   int stock;
   DateTime creationDate;
 
@@ -58,13 +64,46 @@ class Product {
     };
   }
 
-  Future<List<String>> getImages() async {
+  Future<void> precache(String url, BuildContext context) async {
+    await precacheImage(FileImage(await MyCacheManager().getSingleFile(url)), context);
+  }
+  Future<List<String>> getImages(BuildContext context) async {
+    try {
+      if (images.isNotEmpty || hasImage == false) {
+        return images;
+      }
+      List<String> imgs = await ApiService.GetImages(this.id);
+      if (imgs.isNotEmpty) {
+        this.images = imgs;
+        hasImage = true;
+        List<Future<void>> Futures = [];
+        var file;
+        for (var image in images) {
+          Futures.add(precache(image, context));
+        }
+        await compute((_) async {
+          await Future.wait(Futures);
+        }, null);
+        // debugPrint(name);
+      } else {
+        images = [];
+        hasImage = false;
+      }
+      return images;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<String>> refreshImages() async {
     try {
       List<String> imgs = await ApiService.GetImages(this.id);
       if (imgs.isNotEmpty) {
-        images = imgs;
+        this.images = imgs;
+        hasImage = true;
       } else {
         images = [];
+        hasImage = false;
       }
       return images;
     } catch (e) {
@@ -167,12 +206,13 @@ class Order {
     id: json["id"],
     userId: json["user_id"],
     status: OrderStatus.values.byName(json["status"]),
-    totalPrice: json["total_price"],
-    deliveryPrice: json["delivery_price"],
+    totalPrice: (json["total_price"] as num).toDouble(),
+    deliveryPrice: (json["delivery_price"] as num).toDouble(),
     paymentMethod: json["payment_method"],
     createdAt: DateTime.parse(json["created_at"]),
     updatedAt: DateTime.parse(json["updated_at"]),
-    items: List<OrderItem>.from(json["items"].map((x) => OrderItem.fromJson(x))),
+    items: List<OrderItem>.from((json["items"] as List).map((x) => OrderItem.fromJson(x))),
+    delivery: json["delivery"] != null ? Delivery.fromJson(json["delivery"]) : Delivery(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -185,9 +225,8 @@ class Order {
     "created_at": createdAt.toUtc().toIso8601String(),
     "updated_at": updatedAt.toUtc().toIso8601String(),
     "items": List<dynamic>.from(items.map((x) => x.toJson())),
+    "delivery": delivery.toJson(),
   };
-
-  
 }
 
 enum OrderStatus { pending, transit, delivered, completed, cancelled }

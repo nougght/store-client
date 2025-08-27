@@ -20,142 +20,187 @@ class _MainPageState extends State<MainPage> {
   // final ApiService _api = ApiService();
   // List<Product> _products = [];
   bool isLoading = false;
+  bool isInit = false;
   int page = 1;
   int limit = 20;
-  Future<void> _loadProducts(int page, int limit) async {
-    // _products = await widget.api.fetchProducts();
-    final provider = context.read<ProductProvider>();
-    if (isLoading) return;
-    setState(() => isLoading = true);
-    await provider.fetchList(key: "home", filters: {"sort" : "created_desc"}, page: page, limit: limit); // первая загрузка
-    setState(() => isLoading = false);
-    // setState(() {});
-  }
+  late final ScrollController _scrollController;
+  List<Product> products = [];
 
   @override
   void initState() {
     super.initState();
-    _loadProducts(1, 20);
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+
+    Future.microtask(() async {
+      await _loadProducts(1, 20, context);
+      isInit = true;
+    });
+  }
+
+  void _onScroll() async {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
+        !isLoading) {
+      await _loadProducts(++page, limit, context, append: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProducts(int page, int limit, BuildContext context, {bool append = false}) async {
+    // _products = await widget.api.fetchProducts();
+    final provider = context.read<ProductProvider>();
+    if (isLoading) return;
+    setState(() => isLoading = true);
+    await provider.fetchList(
+      key: "home",
+      filters: {"sort": "created_desc"},
+      page: page,
+      limit: limit,
+      append: append,
+      context: context
+    ); // первая загрузка
+    
+    setState(() => isLoading = false);
+    // setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<ProductProvider>(
       builder: (context, provider, child) {
-        final products = provider.getList("home");
+        if (isInit) {
+          products = provider.getList("home");
+        }
+        else {
+          return Center(child: CircularProgressIndicator());
+        }
+        return RefreshIndicator(
+          onRefresh: () {
+            page = 1;
+            return _loadProducts(page, limit, context);
+          },
+          child: Scaffold(
+            body: Stack(
+              children: [
+                CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    SliverAppBar(
+                      backgroundColor: Color.fromARGB(255, 170, 230, 170),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadiusGeometry.only(
+                          bottomLeft: Radius.circular(25),
+                          bottomRight: Radius.circular(25),
+                        ),
+                      ),
+                      pinned: true,
+                      title: Text(
+                        "Главная",
+                        style: TextStyle(fontSize: 20),
+                        textAlign: TextAlign.center,
+                      ),
+                      actions: [
+                        // IconButton(
 
-        return Scaffold(
-          body: Stack(
-            children: [
-              CustomScrollView(
-                slivers: [
-                  SliverAppBar(
-                    backgroundColor: Color.fromARGB(255, 170, 230, 170),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadiusGeometry.only(
-                        bottomLeft: Radius.circular(25),
-                        bottomRight: Radius.circular(25),
+                        // ),
+                      ],
+                    ),
+                    SliverPadding(
+                      padding: EdgeInsetsGeometry.all(10),
+                      sliver: SliverGrid.builder(
+                        itemBuilder: (context, i) {
+                          return ProductCard(product: products[i]);
+                        },
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 7,
+                          crossAxisSpacing: 4,
+                          childAspectRatio: 0.6,
+                        ),
+                        itemCount: products.length,
                       ),
                     ),
-                    pinned: true,
-                    title: Text(
-                      "Главная",
-                      style: TextStyle(fontSize: 20),
-                      textAlign: TextAlign.center,
-                    ),
-                    actions: [
-                      // IconButton(
-
-                      // ),
-                    ],
-                  ),
-                  SliverPadding(
-                    padding: EdgeInsetsGeometry.all(10),
-                    sliver: SliverGrid.builder(
-                      itemBuilder: (context, i) {
-                        if (i >= products.length) {
-                          if (!isLoading) {
-                            _loadProducts(++page, limit);
-                          }
-                          return Center(child: CircularProgressIndicator());
-                        }
-                        return ProductCard(product: products[i]);
-                      },
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 7,
-                        crossAxisSpacing: 4,
-                        childAspectRatio: 0.6,
+                    if (isLoading)
+                      SliverToBoxAdapter(
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
                       ),
-                      itemCount: products.length + (isLoading ? 6 : 0),
-                    ),
-                  ),
-                ],
-              ),
-              // Positioned(
-              //   bottom: 0,
-              //   left: 0,
-              //   right: 0,
-              //   child: ClipRRect(
-              //     borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              //     child: Container(
-              //       decoration: BoxDecoration(
-              //         color: Color.fromARGB(207, 185, 185, 185),
-              //         // borderRadius: BorderRadius.only(
-              //         //   topLeft: Radius.circular(20),
-              //         //   topRight: Radius.circular(10),
-              //         // ),
-              //       ),
-              //       padding: EdgeInsetsGeometry.only(
-              //         left: 10,
-              //         right: 10,
-              //         top: 5,
-              //         bottom: 20,
-              //       ),
-              //       child: Row(
-              //         mainAxisAlignment: MainAxisAlignment.center,
-              //         spacing: 5,
-              //         children: [
-              //           Expanded(
-              //             child: ElevatedButton(
-              //               onPressed: () {},
-              //               style: ElevatedButton.styleFrom(
-              //                 backgroundColor: const Color.fromARGB(
-              //                   255,
-              //                   160,
-              //                   213,
-              //                   159,
-              //                 ),
-              //               ),
-              //               child: Text(
-              //                 "Купить",
-              //                 style: TextStyle(fontSize: 25, height: 2),
-              //               ),
-              //             ),
-              //           ),
-              //           Expanded(
-              //             child: ElevatedButton(
-              //               onPressed: () {},
-              //               style: ElevatedButton.styleFrom(
-              //                 backgroundColor: const Color.fromARGB(
-              //                   255,
-              //                   159,
-              //                   201,
-              //                   213,
-              //                 ),
-              //               ),
-              //               child: Text(
-              //                 "В корзину",
-              //                 style: TextStyle(fontSize: 25, height: 2),
-              //               ),
-              //             ),
-              //           ),
-              //         ],
-              //       ),
-              //     ),
-              //   ),
-              // ),
-            ],
+                  ],
+                ),
+                // Positioned(
+                //   bottom: 0,
+                //   left: 0,
+                //   right: 0,
+                //   child: ClipRRect(
+                //     borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                //     child: Container(
+                //       decoration: BoxDecoration(
+                //         color: Color.fromARGB(207, 185, 185, 185),
+                //         // borderRadius: BorderRadius.only(
+                //         //   topLeft: Radius.circular(20),
+                //         //   topRight: Radius.circular(10),
+                //         // ),
+                //       ),
+                //       padding: EdgeInsetsGeometry.only(
+                //         left: 10,
+                //         right: 10,
+                //         top: 5,
+                //         bottom: 20,
+                //       ),
+                //       child: Row(
+                //         mainAxisAlignment: MainAxisAlignment.center,
+                //         spacing: 5,
+                //         children: [
+                //           Expanded(
+                //             child: ElevatedButton(
+                //               onPressed: () {},
+                //               style: ElevatedButton.styleFrom(
+                //                 backgroundColor: const Color.fromARGB(
+                //                   255,
+                //                   160,
+                //                   213,
+                //                   159,
+                //                 ),
+                //               ),
+                //               child: Text(
+                //                 "Купить",
+                //                 style: TextStyle(fontSize: 25, height: 2),
+                //               ),
+                //             ),
+                //           ),
+                //           Expanded(
+                //             child: ElevatedButton(
+                //               onPressed: () {},
+                //               style: ElevatedButton.styleFrom(
+                //                 backgroundColor: const Color.fromARGB(
+                //                   255,
+                //                   159,
+                //                   201,
+                //                   213,
+                //                 ),
+                //               ),
+                //               child: Text(
+                //                 "В корзину",
+                //                 style: TextStyle(fontSize: 25, height: 2),
+                //               ),
+                //             ),
+                //           ),
+                //         ],
+                //       ),
+                //     ),
+                //   ),
+                // ),
+              ],
+            ),
           ),
         );
       },

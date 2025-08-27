@@ -1,25 +1,33 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:mobile_store/classes.dart';
+import 'package:mobile_store/models/product.dart';
 import 'package:mobile_store/services/api_service.dart';
 
 // class CartItem
 
 class CartModel with ChangeNotifier {
   final ApiService api;
+  final ProductProvider productProvider;
   bool cartLoaded = false;
-  bool productsLoaded = false;
+  List<Product> _products = [];
   String? cartId;
   List<CartItem> cartItems = [];
-  List<Product> products = [];
   bool isAllChecked = false;
 
-  CartModel(this.api);
+  CartModel(this.api, this.productProvider);
+
   int get totalQuantity {
     return cartItems.fold(0, (sum, item) {
       return sum + item.quantity;
     });
+  }
+
+  List<Product> get products {
+    _products = productProvider.getList("cart");
+    return _products;
   }
 
   double get totalPrice {
@@ -35,12 +43,6 @@ class CartModel with ChangeNotifier {
   double get deliveryPrice {
     return totalQuantity * 10;
   }
-  Product getProductById(String productId) {
-    return products.firstWhere(
-      (product) => product.id == productId,
-      orElse: () => Product(id: '', name: 'Unknown', description: '', price: 0.0, stock: 0),
-    );
-  }
 
   CartItem getCartItemById(String cartItemId) {
     return cartItems.firstWhere(
@@ -49,12 +51,12 @@ class CartModel with ChangeNotifier {
     );
   }
 
-  Future<void> setCartIdByUserId(String? userId) async {
+  Future<void> setCartIdByUserId(String? userId, BuildContext context) async {
     if (userId != null) {
       try {
         cartId = await api.GetCartIdByUserId(userId);
-        await fetchCartItems();
-        await fetchProducts();
+        await fetchCartItems(context);
+        await productProvider.fetchListByIds("cart", getCartItemsIds(), context);
         cartLoaded = true;
       } catch (e) {
         debugPrint('Ошибка загрузки корзины: $e');
@@ -77,7 +79,7 @@ class CartModel with ChangeNotifier {
     return item.quantity;
   }
 
-  Future<void> addToCart(Product product) async {
+  Future<void> addToCart(Product product, BuildContext context) async {
     CartItem ItemToAdd = CartItem(
       cart_id: cartId ?? "",
       productId: product.id,
@@ -90,22 +92,23 @@ class CartModel with ChangeNotifier {
       debugPrint('Добавлено в корзину: $response');
       ItemToAdd.id = response; // Получаем ID добавленного товара
       cartItems.add(ItemToAdd);
-      products.add(product);
-
+      await productProvider.fetchListByIds("cart", getCartItemsIds(), context);
+      products;
       notifyListeners();
     } catch (e) {
       debugPrint('Ошибка добавления в корзину: $e');
     }
   }
 
-  Future<void> removeSelected() async {
+  Future<void> removeSelected(BuildContext context) async {
     var items = selectedItems;
     try {
       final response = await api.deleteSelected(items);
       debugPrint('Удалено из корзины: $response');
       for (var item in items) {
-        products.removeWhere((product) => product.id == item.productId);
         cartItems.remove(item);
+        await productProvider.fetchListByIds("cart", getCartItemsIds(), context);
+        products;
       }
       notifyListeners();
     } catch (e) {
@@ -127,7 +130,7 @@ class CartModel with ChangeNotifier {
     return cartItems.where((item) => item.isChecked).toList();
   }
 
-  Future<bool> deleteFromCart(Product product) async {
+  Future<bool> deleteFromCart(Product product, BuildContext context) async {
     var itemToDelete = cartItems.firstWhere((item) {
       return item.productId == product.id;
     }, orElse: () => CartItem());
@@ -139,7 +142,8 @@ class CartModel with ChangeNotifier {
       }
       final response = await api.deleteFromCart(itemToDelete.id);
       cartItems.remove(itemToDelete);
-      products.removeWhere((prod) => prod.id == product.id);
+      await productProvider.fetchListByIds("cart", getCartItemsIds(), context);
+      products;
       notifyListeners();
       return true;
     } catch (e) {
@@ -157,7 +161,6 @@ class CartModel with ChangeNotifier {
       final response = await api.updateCartItem({"id": ItemToUpdate.id, "quantity": newQuantity});
       ItemToUpdate.quantity = newQuantity;
       cartItems = List.from(cartItems); // Обновляем список для уведомления слушателей
-      products = List.from(products); // Обновляем список продуктов
       notifyListeners();
       return true;
     } catch (e) {
@@ -166,35 +169,39 @@ class CartModel with ChangeNotifier {
     }
   }
 
-  Future<void> fetchCartItems() async {
+  Future<void> fetchCartItems(BuildContext context) async {
     try {
       final response = await api.fetchCartItems(id: cartId!);
       cartItems = response;
+      await productProvider.fetchListByIds("cart", getCartItemsIds(), context);
       cartLoaded = true;
     } catch (e) {
       debugPrint('Ошибка загрузки корзины: $e');
     }
   }
 
-  Future<void> fetchProducts() async {
-    if (cartItems.isEmpty) {
-      productsLoaded = true;
-      debugPrint('Корзина пуста, загрузка продуктов не требуется.');
-    } else {
-      String query = "";
-      for (var item in cartItems) {
-        query += item.productId + ",";
-      }
-      query = query.substring(0, query.length - 1);
-      debugPrint(query);
-      try {
-        final response = await api.fetchProductsByIds(query);
-        products = response;
-        productsLoaded = true;
-      } catch (e) {
-        debugPrint('Ошибка загрузки продуктов: $e');
-      }
-    }
-    notifyListeners();
+  List<String> getCartItemsIds () {
+    return cartItems.map((item) => item.productId).toList();
   }
+  // Future<void> fetchProducts() async {
+  //   if (cartItems.isEmpty) {
+  //     productsLoaded = true;
+  //     debugPrint('Корзина пуста, загрузка продуктов не требуется.');
+  //   } else {
+  //     String query = "";
+  //     for (var item in cartItems) {
+  //       query += item.productId + ",";
+  //     }
+  //     query = query.substring(0, query.length - 1);
+  //     debugPrint(query);
+  //     try {
+  //       final response = await api.fetchProductsByIds(query);
+  //       products = response;
+  //       productsLoaded = true;
+  //     } catch (e) {
+  //       debugPrint('Ошибка загрузки продуктов: $e');
+  //     }
+  //   }
+  //   notifyListeners();
+  // }
 }

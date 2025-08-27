@@ -1,58 +1,125 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:mobile_store/classes.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_store/classes.dart' as classes;
 import 'package:mobile_store/services/api_service.dart';
+import 'package:mobile_store/models/product.dart';
 
 // class CartItem
 
-
 class CatalogModel with ChangeNotifier {
   final ApiService api;
+  final ProductProvider productProvider;
   bool productsLoaded = false;
   bool categoriesLoaded = false;
-  String selectedCategoryId = '';
+  String? selectedCategoryId;
   String searchQuery = '';
-  List<Product> _products = [];
+  // List<Product> _products = [];
   List<classes.Category> categories = [];
   int? selectedSort = 0;
-  
-  void setSort(int? value)
-  {
-    selectedSort = value;
+  int page = 1;
+  int limit = 20;
+
+  void setSort(int? value, BuildContext context) {
+    page = 1;
+
+    productsLoaded = false; // Сброс флага загрузки продуктов
+
+    notifyListeners();
+    filteredProducts(context, append: false);
     notifyListeners();
   }
 
-  CatalogModel(this.api);
+  CatalogModel(this.api, this.productProvider);
 
-  List<Product> get filteredProducts {
-    var filtered = _products.where((product) {
-      final matchesCategory = selectedCategoryId.isEmpty ||
-          product.categoryId == selectedCategoryId;
-      final matchesSearch = searchQuery.isEmpty ||
-          product.name.toLowerCase().contains(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
-    filtered.sort((a, b) {
-      switch(selectedSort) {
-        case 0: return a.price.compareTo(b.price);
-        case 1: return b.price.compareTo(a.price);
-        case 2: return a.creationDate.compareTo(b.creationDate);
-        default: return a.creationDate.compareTo(b.creationDate);
+  String sortToString(int? sort) {
+    switch (sort) {
+      case 0:
+        return "price_asc";
+      case 1:
+        return "price_desc";
+      case 2:
+        return "created_asc";
+      default:
+        return "created_desc";
+    }
+  }
+
+  Future<void> filteredProducts(BuildContext context, {append = false}) async {
+    if (append) page++;
+    if (selectedCategoryId == null && searchQuery.isEmpty) {
+      // Если нет выбранной категории и нет поискового запроса, просто загружаем все товары
+      await productProvider.fetchList(
+        key: "catalog",
+        filters: {"sort": sortToString(selectedSort)},
+        page: page,
+        limit: limit,
+        append: append,
+        context: context,
+      );
+      productsLoaded = true;
+      notifyListeners();
+      return;
+    } else {
+      // Если есть категория или поисковый запрос, фильтруем товары
+      Map<String, dynamic> filters = {};
+      if (selectedCategoryId != null && selectedCategoryId != null) {
+        filters['category'] = selectedCategoryId;
+        filters['sort'] = sortToString(selectedSort);
+        filters['search'] = searchQuery;
+      } else if (searchQuery.isNotEmpty) {
+        filters['search'] = searchQuery;
+        filters['sort'] = sortToString(selectedSort);
       }
-    });
-    return filtered;
+      await productProvider.fetchList(
+        key: "catalog",
+        filters: filters,
+        page: page,
+        limit: limit,
+        append: append,
+        context: context,
+      );
+      productsLoaded = true;
+      notifyListeners();
+      return;
+    }
+    // var filtered = _products.where((product) {
+    //   // final matchesCategory = selectedCategoryId.isEmpty ||
+    //   //     product.categoryId == selectedCategoryId;
+    //   final matchesSearch = searchQuery.isEmpty ||
+    //       product.name.toLowerCase().contains(searchQuery.toLowerCase());
+    //   return matchesSearch;
+    // }).toList();
+    // filtered.sort((a, b) {
+    //   switch(selectedSort) {
+    //     case 0: return a.price.compareTo(b.price);
+    //     case 1: return b.price.compareTo(a.price);
+    //     case 2: return a.creationDate.compareTo(b.creationDate);
+    //     default: return a.creationDate.compareTo(b.creationDate);
+    //   }
+    // });
+    // return filtered;
   }
 
-  void setSelectedCategory(String categoryId) {
+  void setSelectedCategory(String? categoryId, BuildContext context) async {
     selectedCategoryId = categoryId;
-    // productsLoaded = false; // Сброс флага загрузки продуктов
+    page = 1;
+
+    productsLoaded = false; // Сброс флага загрузки продуктов
+
+    notifyListeners();
+    filteredProducts(context, append: false,);
     notifyListeners();
   }
 
-  void setSearchQuery(String query) {
+  void setSearchQuery(String query, BuildContext context) {
     searchQuery = query;
+    page = 1;
+    productsLoaded = false; // Сброс флага загрузки продуктов
+    notifyListeners();
+    filteredProducts(context ,append: false);
     // productsLoaded = false; // Сброс флага загрузки продуктов
     notifyListeners();
   }
@@ -71,26 +138,22 @@ class CatalogModel with ChangeNotifier {
     }
   }
 
-  Future<bool> fetchProducts() async {
-    try {
-      final response = await api.fetchProducts();
-      _products = response;
-      productsLoaded = true;
-      notifyListeners();
-      debugPrint('Продукты загружены: ${_products.length}');
-      return true;
-    } catch (e) {
-      debugPrint('Ошибка загрузки продуктов: $e');
-      return false;
-    }
-  }
-
+  // Future<bool> fetchProducts() async {
+  //   try {
+  //     final response = await api.fetchProducts();
+  //     _products = response;
+  //     productsLoaded = true;
+  //     notifyListeners();
+  //     debugPrint('Продукты загружены: ${_products.length}');
+  //     return true;
+  //   } catch (e) {
+  //     debugPrint('Ошибка загрузки продуктов: $e');
+  //     return false;
+  //   }
+  // }
 
   // Получаем список выбранных товаров (опционально)
   // List<CartItem> get selectedItems {
   //   return cartItems.where((item) => item.isChecked).toList();
   // }
-
-
-
 }

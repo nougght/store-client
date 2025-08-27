@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'models/cacheManager.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_store/payment_page.dart';
 import 'package:provider/provider.dart';
@@ -9,7 +11,6 @@ import 'models/auth.dart';
 class ProductPage extends StatefulWidget {
   ProductPage({super.key, required this.product});
   final Product product;
-  late bool hasImage = true;
   @override
   State<StatefulWidget> createState() {
     return _ProductPageState();
@@ -19,7 +20,7 @@ class ProductPage extends StatefulWidget {
 class _ProductPageState extends State<ProductPage> {
   late bool isInCart;
   late bool isInFavourite;
-  late List<Image> images;
+  // late List<Image> images;
   late int quantityInCart;
   late bool isImagesLoaded = false;
   int _imageIndex = 0;
@@ -29,7 +30,7 @@ class _ProductPageState extends State<ProductPage> {
   @override
   void initState() {
     super.initState();
-    images = [];
+    // images = [];
     // images = [
     //   // Container(height: 700, width: 700, color: Colors.blue),
     //   // Container(
@@ -44,9 +45,9 @@ class _ProductPageState extends State<ProductPage> {
     //   // ),
     // ];
 
-    isInFavourite = false;
-    _loadImages();
-    isImagesLoaded = true;
+    // isInFavourite = false;
+    // _loadImages();
+    // isImagesLoaded = true;
 
     // base64toPng(widget.product.images);
   }
@@ -57,27 +58,28 @@ class _ProductPageState extends State<ProductPage> {
     super.didChangeDependencies();
   }
 
-  void _loadImages() async {
-    try {
-      List<String> urls = await widget.product.getImages();
-      setState(() {
-        images = List.generate(
-          urls.length,
-          (index) => Image.network(
-            urls[index],
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => const Placeholder(),
-          ),
-        );
-        if (images.isEmpty) {
-          widget.hasImage = false;
-        }
-      });
-      debugPrint(images.length.toString());
-    } catch (e) {
-      debugPrint(e.toString());
-    }
-  }
+  // void _loadImages() async {
+  //   try {
+  //     List<String> urls = await widget.product.getImages();
+  //     setState(() {
+  //       images = List.generate(
+  //         urls.length,
+  //         (index) => 
+  //         Image.network(
+  //           urls[index],
+  //           fit: BoxFit.contain,
+  //           errorBuilder: (context, error, stackTrace) => const Placeholder(),
+  //         ),
+  //       );
+  //       // if (images.isEmpty) {
+  //       //   widget.hasImage = false;
+  //       // }
+  //     });
+  //     debugPrint(images.length.toString());
+  //   } catch (e) {
+  //     debugPrint(e.toString());
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +149,7 @@ class _ProductPageState extends State<ProductPage> {
                             });
                           },
 
-                          itemCount: widget.hasImage ? images.length : 1,
+                          itemCount: widget.product.hasImage ? widget.product.images.length : 1,
                           itemBuilder: (context, index) => Padding(
                             padding: EdgeInsetsGeometry.symmetric(horizontal: 5, vertical: 5),
                             child: ClipRRect(
@@ -161,16 +163,28 @@ class _ProductPageState extends State<ProductPage> {
                                   // ),
                                   // border: BoxBorder.all(width: 1)
                                 ),
-                                child: widget.hasImage
-                                    ? isImagesLoaded
-                                          ? images[index]
-                                          : Center(child: CircularProgressIndicator())
+                                child: widget.product.hasImage
+                                    ? widget.product.images.isEmpty
+                                          ? CircularProgressIndicator()
+                                          : CachedNetworkImage(
+                                              key: ValueKey(widget.product.images[index]),
+                                              imageUrl: widget.product.images[index],
+                                              fit: BoxFit.contain,
+                                              placeholder: (context, url) =>
+                                                  CircularProgressIndicator(),
+                                              errorWidget: (context, url, error) =>
+                                                  Icon(Icons.error),
+                                              fadeInDuration: Duration.zero,
+                                              placeholderFadeInDuration: Duration.zero,
+                                              fadeOutDuration: Duration.zero,
+                                              cacheManager: MyCacheManager(),
+                                            )
                                     : Placeholder(),
                               ),
                             ),
                           ),
                         ),
-                        if (widget.hasImage && images.length > 1)
+                        if (widget.product.hasImage && widget.product.images.length > 1)
                           Positioned(
                             bottom: 20,
                             left: 0,
@@ -185,7 +199,7 @@ class _ProductPageState extends State<ProductPage> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  children: List.generate(images.length, (index) {
+                                  children: List.generate(widget.product.images.length, (index) {
                                     return IntrinsicWidth(
                                       child: Container(
                                         width: index == _imageIndex ? 10 : 5,
@@ -247,33 +261,33 @@ class _ProductPageState extends State<ProductPage> {
                           maxLines: 1,
                         ),
                         // padding: EdgeInsetsGeometry.only(left: 50, right: 50),
-                        Padding(
-                          padding: EdgeInsetsGeometry.only(
-                            left: 150,
-                            right: 150,
-                            // top: 20,
-                            // bottom: 20,
-                          ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Color.fromARGB(255, 147, 251, 157),
-                              border: BoxBorder.all(
-                                width: 2,
-                                color: Color.fromARGB(255, 90, 129, 130),
-                              ),
-                              borderRadius: BorderRadius.all(Radius.circular(10)),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                        // Padding(
+                        //   padding: EdgeInsetsGeometry.only(
+                        //     left: 150,
+                        //     right: 150,
+                        //     // top: 20,
+                        //     // bottom: 20,
+                        //   ),
+                        //   child: Container(
+                        //     decoration: BoxDecoration(
+                        //       color: Color.fromARGB(255, 147, 251, 157),
+                        //       border: BoxBorder.all(
+                        //         width: 2,
+                        //         color: Color.fromARGB(255, 90, 129, 130),
+                        //       ),
+                        //       borderRadius: BorderRadius.all(Radius.circular(10)),
+                        //     ),
+                        //     child: Row(
+                        //       mainAxisAlignment: MainAxisAlignment.center,
 
-                              children: [
-                                Icon(Icons.star),
-                                Text("4.78", style: TextStyle(fontSize: 25)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Container(
+                        //       children: [
+                        //         Icon(Icons.star),
+                        //         Text("4.78", style: TextStyle(fontSize: 25)),
+                        //       ],
+                        //     ),
+                        //   ),
+                        // ),
+                        if (widget.product.description != "") Container(
                           decoration: BoxDecoration(
                             // color: Color.fromARGB(255, 147, 251, 157),
                             border: BoxBorder.all(
@@ -294,27 +308,27 @@ class _ProductPageState extends State<ProductPage> {
                             ],
                           ),
                         ),
-                        Container(
-                          decoration: BoxDecoration(
-                            // color: Color.fromARGB(255, 147, 251, 157),
-                            border: BoxBorder.all(
-                              width: 2,
-                              color: Color.fromARGB(255, 90, 129, 130),
-                            ),
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            spacing: 10,
-                            children: [
-                              Text("Отзывы", style: TextStyle(fontSize: 40)),
-                              Text(
-                                "Один\nДва\nТри\nЧетыре\nПять\n6\n7\n8\n9\n0",
-                                style: TextStyle(fontSize: 30),
-                              ),
-                            ],
-                          ),
-                        ),
+                        // if (1 == 0) Container(
+                        //   decoration: BoxDecoration(
+                        //     // color: Color.fromARGB(255, 147, 251, 157),
+                        //     border: BoxBorder.all(
+                        //       width: 2,
+                        //       color: Color.fromARGB(255, 90, 129, 130),
+                        //     ),
+                        //     borderRadius: BorderRadius.all(Radius.circular(10)),
+                        //   ),
+                        //   child: Column(
+                        //     crossAxisAlignment: CrossAxisAlignment.start,
+                        //     spacing: 10,
+                        //     children: [
+                        //       Text("Отзывы", style: TextStyle(fontSize: 40)),
+                        //       Text(
+                        //         "Один\nДва\nТри\nЧетыре\nПять\n6\n7\n8\n9\n0",
+                        //         style: TextStyle(fontSize: 30),
+                        //       ),
+                        //     ],
+                        //   ),
+                        // ),
                         SizedBox(height: 100),
                       ],
                     ),
@@ -373,7 +387,7 @@ class _ProductPageState extends State<ProductPage> {
                                   await Provider.of<CartModel>(
                                     context,
                                     listen: false,
-                                  ).addToCart(widget.product);
+                                  ).addToCart(widget.product, context);
 
                                   // Provider.of<CartModel>(
                                   //   context,
@@ -411,7 +425,7 @@ class _ProductPageState extends State<ProductPage> {
                                           if (quantityInCart <= 1) {
                                             isInCart = false;
                                             if (await context.read<CartModel>().deleteFromCart(
-                                              widget.product,
+                                              widget.product, context
                                             )) {
                                               setState(() {
                                                 quantityInCart = 0;

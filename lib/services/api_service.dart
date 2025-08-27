@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:mobile_store/classes.dart';
+import 'package:flutter/material.dart';
 
 class ApiService {
   // final String _emUrl = "http://10.0.2.2:8080";
@@ -136,6 +137,7 @@ class ApiService {
     }
   }
 
+
   Future<List<Category>> fetchCategories() async {
     final response = await http.get(Uri.parse("$_emUrl/categories"));
 
@@ -198,7 +200,7 @@ Future<List<Product>> getProductsPage({
     if (response.statusCode == 200) {
       return (json.decode(response.body) as List).map((item) => Product.fromJson(item)).toList();
     } else {
-      throw Exception('Ошибка загрузки продуктов в корзине: ${response.statusCode}');
+      throw Exception('Ошибка загрузки продуктов: ${response.statusCode}');
     }
   }
 
@@ -307,9 +309,11 @@ Future<List<Product>> getProductsPage({
 
   static Future<List<String>> GetImages(String id) async {
     final url = Uri.parse('http://51.250.104.71:8085/products/$id/images');
+    int start = DateTime.now().millisecondsSinceEpoch;
     final response = await http.get(url);
     if (response.statusCode == 200) {
-      return (json.decode(response.body)['images'] as List).map((item) => item["url"] as String).toList();
+      // debugPrint('time: ${DateTime.now().millisecondsSinceEpoch - start} ms');
+      return ((json.decode(response.body)['images'] ?? []) as List).map((item) => item["url"] as String).toList();
     } else {
       throw Exception('Ошибка загрузки изображений: ${response.statusCode} ${response.body}');
     }

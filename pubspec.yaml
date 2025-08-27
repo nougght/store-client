@@ -44,6 +44,7 @@ dependencies:
   flutter_dotenv: ^5.2.1
   yandex_maps_mapkit: ^4.19.0-beta
   step_progress: ^2.6.1
+  cached_network_image: ^3.4.1
   # yandex_maps_mapkit_lite: ^4.19.0-beta
   
 dev_dependencies:

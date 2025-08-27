@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'models/cart.dart';
 
@@ -24,6 +26,7 @@ import 'models/settings.dart';
 import 'package:yandex_maps_mapkit/init.dart' as init;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
@@ -34,19 +37,31 @@ void main() async {
   await dotenv.load(fileName: ".env");
   final akey = dotenv.env['YANDEX_MAPKIT_KEY'] ?? '';
   await init.initMapkit(apiKey: akey, locale: 'ru_RU');
+  
+  // CachedNetworkImage. = cacheManager;
 
   runApp(
     MultiProvider(
       providers: [
         Provider(create: (_) => ApiService()),
-        ChangeNotifierProvider(create: (context) => SettingsModel(context.read<ApiService>(), token == '' ? false : isDarkMode)),
-        ChangeNotifierProvider(create: (context) => CatalogModel(context.read<ApiService>())),
-        ChangeNotifierProvider(create: (context) => CartModel(context.read<ApiService>())),
+        ChangeNotifierProvider(
+          create: (context) => ProductProvider(apiService: context.read<ApiService>()),
+        ),
+        ChangeNotifierProvider(
+          create: (context) =>
+              SettingsModel(context.read<ApiService>(), token == '' ? false : isDarkMode),
+        ),
+        ChangeNotifierProvider(
+          create: (context) =>
+              CatalogModel(context.read<ApiService>(), context.read<ProductProvider>()),
+        ),
+        ChangeNotifierProvider(create: (context) => CartModel(context.read<ApiService>(), context.read<ProductProvider>())),
         ChangeNotifierProvider(
           create: (context) => AuthModel(context.read<ApiService>())..autoLogin(token, userId),
         ),
-        ChangeNotifierProvider(create: (context) => ProductProvider(apiService: context.read<ApiService>())),
-        ChangeNotifierProvider(create: (context) => OrderModel(context.read<ApiService>(), context.read<AuthModel>())),
+        ChangeNotifierProvider(
+          create: (context) => OrderModel(context.read<ApiService>(), context.read<AuthModel>()),
+        ),
       ],
       child: const TestApp(),
     ),
@@ -115,7 +130,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthModel>();
     if (user.isAuth && context.read<CartModel>().cartId == null) {
-      context.read<CartModel>().setCartIdByUserId(user.currentUser!.userId);
+      context.read<CartModel>().setCartIdByUserId(user.currentUser!.userId, context);
     }
 
     return user.isSplashScreen
@@ -126,7 +141,11 @@ class _MainScreenState extends State<MainScreen> {
                 children: [
                   FlutterLogo(size: 100),
                   const SizedBox(height: 50),
-                  const CircularProgressIndicator(semanticsLabel: 'Loading...', color: Color.fromARGB(248, 133, 231, 166), strokeWidth: 5),
+                  const CircularProgressIndicator(
+                    semanticsLabel: 'Loading...',
+                    color: Color.fromARGB(248, 133, 231, 166),
+                    strokeWidth: 5,
+                  ),
                 ],
               ),
             ),
