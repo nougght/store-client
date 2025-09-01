@@ -277,7 +277,7 @@ class _ProductCardState extends State<ProductCard> {
                                 _imageIndex = value;
                               });
                             },
-                            itemCount: widget.product.hasImage ? widget.product.images.length : 1,
+                            itemCount: !widget.product.hasImage || widget.product.images.isEmpty ? 1 : widget.product.images.length,
                             itemBuilder: (context, index) => Container(
                               margin: EdgeInsetsGeometry.all(0),
                               padding: EdgeInsetsGeometry.all(0),
@@ -290,13 +290,13 @@ class _ProductCardState extends State<ProductCard> {
                               ),
                               child: widget.product.hasImage
                                   ? widget.product.images.isEmpty
-                                        ? Center(child: CircularProgressIndicator())
+                                        ? Center(child: Icon(Icons.error_outline_rounded))
                                         : CachedNetworkImage(
                                             key: ValueKey(widget.product.images[index]),
                                             imageUrl: widget.product.images[index],
                                             fit: BoxFit.contain,
                                             placeholder: (context, url) =>
-                                                CircularProgressIndicator(),
+                                                Center(child:CircularProgressIndicator()),
                                             errorWidget: (context, url, error) => Icon(Icons.error),
                                             fadeInDuration: Duration.zero,
                                             placeholderFadeInDuration: Duration.zero,
