@@ -1,16 +1,19 @@
-# mobile_store
+# Мобильное приложение (Android/IOS) для онлайн-магазина
 
-A new Flutter project.
+_Бэкенд (Golang) - <https://github.com/nougght/store-backend>_
 
-## Getting Started
+## Функционал
 
-This project is a starting point for a Flutter application.
+- Регистрация и авторизация пользователей через email(отправка кода по SMTP) и номер(отправка sms не реализована)
+- Каталог товаров с возможностью фильтрации и сортировки
+- Корзина для добавления товаров и оформления заказа
+- Оформление заказа с выбором адреса доставки через встроенную карту (Yandex MapKit)
+- Личный профиль пользователя с историей заказов и настройками
+- Избранные товары для быстрого доступа
 
-A few resources to get you started if this is your first Flutter project:
+## Технологии
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Flutter для кроссплатформенной разработки (Android и iOS)
+- Provider для управления состоянием приложения
+- http.dart для взаимодействия с бэкендом
+- Yandex MapKit для выбора адреса доставки
