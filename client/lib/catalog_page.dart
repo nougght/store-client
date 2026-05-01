@@ -76,8 +76,9 @@ class CategoryCard extends StatelessWidget {
         color: isSelected ? Color.fromARGB(255, 230, 179, 90) : Color.fromARGB(255, 219, 219, 219),
 
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(category.name, style: TextStyle(fontSize: 20)),
+            Text(category.name, style: TextStyle(fontSize: 15), textAlign: TextAlign.center,),
             Expanded(
               child: hasImage ? image : Icon(Icons.error),
               // child: imagePath == ""

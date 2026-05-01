@@ -59,14 +59,11 @@ class _MainPageState extends State<MainPage> {
 
   Future<void> _initYandexMaps() async {
     try {
-      setState(() => isLoading = true);
       String key = await widget.api.getYandexMapKey();
       await init.initMapkit(apiKey: key, locale: 'ru_RU');
       print("Yandex Maps initialized");
-      setState(() => isLoading = false);
     } catch (e) {
       print("Error initializing Yandex Maps: $e");
-      setState(() => isLoading = false);
     }
   }
 
