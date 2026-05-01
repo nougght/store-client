@@ -34,9 +34,11 @@ void main() async {
   final userId = prefs.getString('userId') ?? '';
   final isDarkMode = prefs.getBool('isDarkMode') ?? false;
 
-  await dotenv.load(fileName: ".env");
-  final akey = dotenv.env['YANDEX_MAPKIT_KEY'] ?? '';
-  await init.initMapkit(apiKey: akey, locale: 'ru_RU');
+  // сейчас ключ загружается с сервера
+  // await dotenv.load(fileName: ".env");
+  // final akey = dotenv.env['YANDEX_MAPKIT_KEY'] ?? '';
+  // await init.initMapkit(apiKey: akey, locale: 'ru_RU');
+  
   
   // CachedNetworkImage. = cacheManager;
 
@@ -65,11 +67,12 @@ void main() async {
       ],
       child: const TestApp(),
     ),
-  ); // запуск приложения
+  ); 
 }
 
 class TestApp extends StatelessWidget {
   const TestApp({super.key});
+
 
   @override
   Widget build(BuildContext context) {
@@ -84,16 +87,6 @@ class TestApp extends StatelessWidget {
     );
   }
 }
-// const CatalogPage(
-//         categories: {
-//           "Электроника": "electronic.png",
-//           "Книги": "books.png",
-//           "Продукты питания": "food.png",
-//           "Одежда": "clothes.png",
-//           "Аксессуары": "accessories.png",
-//           "Распродажа": "sale.png",
-//         },
-//       )
 
 class MainScreen extends StatefulWidget {
   @override
@@ -108,22 +101,14 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     // TODO: implement initState
     super.initState();
+
+    
     pages = <Widget>[
       MainPage(api: context.read<ApiService>()),
-      // Scaffold(
-      //   // appBar: AppBar(
-      //   //   backgroundColor: Color.fromARGB(248, 133, 231, 166),
-      //   //   title: Text("Тест", style: TextStyle(fontSize: 20)),
-      //   // ),
-      // ),
       CatalogPage(), CartPage(), ProfilePage(),
-      // Scaffold(
-      //   appBar: AppBar(
-      //     backgroundColor: Color.fromARGB(248, 133, 231, 166),
-      //     title: Text("Корзина", style: TextStyle(fontSize: 20)),
-      //   ),
-      // ),
     ];
+
+
   }
 
   @override
@@ -132,7 +117,7 @@ class _MainScreenState extends State<MainScreen> {
     if (user.isAuth && context.read<CartModel>().cartId == null) {
       context.read<CartModel>().setCartIdByUserId(user.currentUser!.userId, context);
     }
-
+    
     return user.isSplashScreen
         ? Scaffold(
             body: Center(
@@ -187,168 +172,3 @@ class _MainScreenState extends State<MainScreen> {
         : AuthPage();
   }
 }
-
-class MainPage1 extends StatefulWidget {
-  @override
-  State<StatefulWidget> createState() => _MainPageState1();
-}
-
-class _MainPageState1 extends State<MainPage1> {
-  List<dynamic> data = [];
-  // List<Product> products = [
-  //   Product(
-  //     id: 0,
-  //     name: "Хлеб",
-  //     description: "Ржаной хлеб",
-  //     price: 35.0,
-  //     stock: 5,
-  //     categoryId: 2,
-  //   ),
-  //   Product(
-  //     id: 1,
-  //     name: "Молоко",
-  //     description: "1 литр, 3.2%",
-  //     price: 70.0,
-  //     stock: 10,
-  //     categoryId: 2,
-  //   ),
-  //   Product(
-  //     id: 2,
-  //     name: "Смартфон",
-  //     description: "Android, 128GB",
-  //     price: 15999.0,
-  //     stock: 3,
-  //     categoryId: 0,
-  //   ),
-  //   Product(
-  //     id: 3,
-  //     name: "Книга",
-  //     description: "Роман, 350 стр.",
-  //     price: 450.0,
-  //     stock: 7,
-  //     categoryId: 1,
-  //   ),
-  //   Product(
-  //     id: 4,
-  //     name: "Футболка",
-  //     description: "100% хлопок",
-  //     price: 599.0,
-  //     stock: 15,
-  //     categoryId: 3,
-  //   ),
-  // ];
-  Future<void> fetchData() async {
-    final url = Uri.parse('http://10.0.2.2:8080/products');
-
-    try {
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        setState(() {
-          data = json.decode(response.body);
-          data = data.toList();
-        });
-        // print(data);
-      } else {
-        print('Ошибка: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Ошибка: $e');
-    }
-  }
-
-  @override
-  initState() {
-    super.initState();
-    fetchData();
-  }
-
-  Widget gridBuild(BuildContext c, int i) {
-    return ProductCard(product: Product.fromJson(data[i]));
-    // Placeholder();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color.fromARGB(248, 133, 231, 166),
-        title: Text("Главная", style: TextStyle(fontSize: 20), textAlign: TextAlign.center),
-        // actions: [Icon(Icons.delete_sweep_rounded)],
-      ),
-      body: Container(
-        child: data.isNotEmpty
-            ? GridView.builder(
-                padding: EdgeInsetsGeometry.all(15),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 0.55,
-                ),
-                itemCount: 140,
-                itemBuilder: gridBuild,
-              )
-            : Center(
-                child: Column(
-                  spacing: 20,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Text("Загрузка...", style: TextStyle(fontSize: 30)),
-                    CircularProgressIndicator(),
-                  ],
-                ),
-              ),
-      ),
-    );
-  }
-}
-
-// TextField(
-//             onSubmitted: (value) {
-//               setState(() {
-//                 _filter = value;
-//                 fetchData();
-//               });
-//             },
-//             onChanged: (value) {
-//               setState(() {
-//                 _filter = value;
-//                 fetchData();
-//               });
-//             },
-//             decoration: InputDecoration(
-//               border: OutlineInputBorder(
-//                 borderRadius: BorderRadius.circular(10),
-//               ),
-//               hintText: "Поиск",
-//               prefixIcon: Icon(Icons.search),
-//               contentPadding: EdgeInsetsGeometry.directional(),
-//             ),
-//           ),
-
-// Widget CustomSearchField() {
-//   dynamic onChangedHandler;
-//   return TextField(
-//     onSubmitted: (value) {
-//       setState(() {
-//         _filter = value;
-// fetchData()
-//       });
-//     },
-//     onChanged: (value) {
-//       setState(() {
-//         _filter = value;
-//         fetchData();
-//       });
-//     },
-//     decoration: InputDecoration(
-//       border: OutlineInputBorder(
-//         borderRadius: BorderRadius.circular(10),
-//       ),
-//       hintText: "Поиск",
-//       prefixIcon: Icon(Icons.search),
-//       contentPadding: EdgeInsetsGeometry.directional(),
-//     ),
-//   );
-// }

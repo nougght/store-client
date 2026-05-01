@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'services/api_service.dart';
 import 'models/product.dart';
+import 'package:yandex_maps_mapkit/init.dart' as init;
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key, required this.api});
@@ -33,13 +34,18 @@ class _MainPageState extends State<MainPage> {
     _scrollController.addListener(_onScroll);
 
     Future.microtask(() async {
+      await _initYandexMaps();
+    });
+
+    Future.microtask(() async {
       await _loadProducts(1, 20, context);
       isInit = true;
     });
   }
 
   void _onScroll() async {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
         !isLoading) {
       await _loadProducts(++page, limit, context, append: true);
     }
@@ -51,7 +57,25 @@ class _MainPageState extends State<MainPage> {
     super.dispose();
   }
 
-  Future<void> _loadProducts(int page, int limit, BuildContext context, {bool append = false}) async {
+  Future<void> _initYandexMaps() async {
+    try {
+      setState(() => isLoading = true);
+      String key = await widget.api.getYandexMapKey();
+      await init.initMapkit(apiKey: key, locale: 'ru_RU');
+      print("Yandex Maps initialized");
+      setState(() => isLoading = false);
+    } catch (e) {
+      print("Error initializing Yandex Maps: $e");
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _loadProducts(
+    int page,
+    int limit,
+    BuildContext context, {
+    bool append = false,
+  }) async {
     // _products = await widget.api.fetchProducts();
     final provider = context.read<ProductProvider>();
     if (isLoading) return;
@@ -62,9 +86,9 @@ class _MainPageState extends State<MainPage> {
       page: page,
       limit: limit,
       append: append,
-      context: context
+      context: context,
     ); // первая загрузка
-    
+
     setState(() => isLoading = false);
     // setState(() {});
   }
@@ -75,8 +99,7 @@ class _MainPageState extends State<MainPage> {
       builder: (context, provider, child) {
         if (isInit) {
           products = provider.getList("home");
-        }
-        else {
+        } else {
           return Center(child: CircularProgressIndicator());
         }
         return RefreshIndicator(
@@ -136,69 +159,6 @@ class _MainPageState extends State<MainPage> {
                       ),
                   ],
                 ),
-                // Positioned(
-                //   bottom: 0,
-                //   left: 0,
-                //   right: 0,
-                //   child: ClipRRect(
-                //     borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                //     child: Container(
-                //       decoration: BoxDecoration(
-                //         color: Color.fromARGB(207, 185, 185, 185),
-                //         // borderRadius: BorderRadius.only(
-                //         //   topLeft: Radius.circular(20),
-                //         //   topRight: Radius.circular(10),
-                //         // ),
-                //       ),
-                //       padding: EdgeInsetsGeometry.only(
-                //         left: 10,
-                //         right: 10,
-                //         top: 5,
-                //         bottom: 20,
-                //       ),
-                //       child: Row(
-                //         mainAxisAlignment: MainAxisAlignment.center,
-                //         spacing: 5,
-                //         children: [
-                //           Expanded(
-                //             child: ElevatedButton(
-                //               onPressed: () {},
-                //               style: ElevatedButton.styleFrom(
-                //                 backgroundColor: const Color.fromARGB(
-                //                   255,
-                //                   160,
-                //                   213,
-                //                   159,
-                //                 ),
-                //               ),
-                //               child: Text(
-                //                 "Купить",
-                //                 style: TextStyle(fontSize: 25, height: 2),
-                //               ),
-                //             ),
-                //           ),
-                //           Expanded(
-                //             child: ElevatedButton(
-                //               onPressed: () {},
-                //               style: ElevatedButton.styleFrom(
-                //                 backgroundColor: const Color.fromARGB(
-                //                   255,
-                //                   159,
-                //                   201,
-                //                   213,
-                //                 ),
-                //               ),
-                //               child: Text(
-                //                 "В корзину",
-                //                 style: TextStyle(fontSize: 25, height: 2),
-                //               ),
-                //             ),
-                //           ),
-                //         ],
-                //       ),
-                //     ),
-                //   ),
-                // ),
               ],
             ),
           ),

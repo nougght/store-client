@@ -2,25 +2,17 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 // import 'package:geolocator/geolocator.dart';
 // import 'package:yandex_mapkit/yandex_mapkit.dart';
 import 'package:geolocator/geolocator.dart';
-import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:yandex_maps_mapkit/mapkit.dart' as mk;
 import 'package:yandex_maps_mapkit/yandex_map.dart';
 import 'package:yandex_maps_mapkit/mapkit_factory.dart';
-import 'package:yandex_maps_mapkit/places.dart';
-import 'package:yandex_maps_mapkit/image.dart' as ip;
 import 'package:yandex_maps_mapkit/search.dart';
-import 'package:yandex_maps_mapkit/directions.dart';
-import 'package:yandex_maps_mapkit/runtime.dart';
-import 'package:yandex_maps_mapkit/transport.dart';
-// import 'yandexs';
 
-import 'classes.dart';
+
 
 // Страница оплаты заказа
 

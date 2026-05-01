@@ -3,10 +3,19 @@ import 'package:http/http.dart' as http;
 import 'package:mobile_store/classes.dart';
 import 'package:flutter/material.dart';
 
+
+const String emURL = "http://10.0.2.2:8080";
+const String localUrl = "http://127.0.0.1:8080";
+
+const String baseURL = emURL;
+
 class ApiService {
-  // final String _emUrl = "http://10.0.2.2:8080";
-  final String _emUrl = "http://51.250.104.71:8080";
-  final String _localUrl = "http://127.0.0.1";
+
+  // late String _baseUrl;
+
+  ApiService(){
+    // _baseUrl = emURL;
+  }
 
   var token = '';
 
@@ -15,7 +24,7 @@ class ApiService {
 
   Future<AuthCode> sendCode(AuthCode code) async {
     final bd = json.encode(code);
-    final response = await http.post(Uri.parse("$_emUrl/auth/code/send"), body: bd);
+    final response = await http.post(Uri.parse("$baseURL/auth/code/send"), body: bd);
 
     if (response.statusCode == 200) {
       return AuthCode.fromJson(json.decode(response.body)['code']);
@@ -26,7 +35,7 @@ class ApiService {
 
   Future<bool> verifyCode(String code, String recipient) async {
     final bd = json.encode({'code': code, 'recipient': recipient});
-    final response = await http.post(Uri.parse("$_emUrl/auth/code/verify"), body: bd);
+    final response = await http.post(Uri.parse("$baseURL/auth/code/verify"), body: bd);
     if (response.statusCode == 200) {
       return true;
     } else {
@@ -36,7 +45,7 @@ class ApiService {
 
   Future<List<dynamic>> register(User user, AuthCode code) async {
     final bd = <String, dynamic>{'user': user.toJson(), 'code': code.toJson()};
-    final response = await http.post(Uri.parse("$_emUrl/auth/register"), body: json.encode(bd));
+    final response = await http.post(Uri.parse("$baseURL/auth/register"), body: json.encode(bd));
     if (response.statusCode == 200) {
 
       return [
@@ -50,7 +59,7 @@ class ApiService {
 
   Future<List<dynamic>> login(User user, AuthCode code) async {
     final bd = <String, dynamic>{'user': user.toJson(), 'code': code.toJson()};
-    final response = await http.post(Uri.parse("$_emUrl/auth/login"), body: json.encode(bd));
+    final response = await http.post(Uri.parse("$baseURL/auth/login"), body: json.encode(bd));
     if (response.statusCode == 200) {
       return [
         User.fromJson(json.decode(response.body)['user']),
@@ -63,17 +72,17 @@ class ApiService {
 
   Future<List<dynamic>> autoLogin(String userId, String token) async {
     final response = await http.post(
-      Uri.parse("$_emUrl/auth/check"),
+      Uri.parse("$baseURL/auth/check"),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
       final userData = await http.get(
-        Uri.parse("$_emUrl/user/$userId"),
+        Uri.parse("$baseURL/user/$userId"),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       if (userData.statusCode == 200) {
         final sessionData = await http.get(
-          Uri.parse("$_emUrl/user/$userId/session"),
+          Uri.parse("$baseURL/user/$userId/session"),
           headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         );
         if (sessionData.statusCode == 200) {
@@ -94,13 +103,13 @@ class ApiService {
   }
 
   Future<void> deleteAccount(String userId) async {
-    final response = await http.delete(Uri.parse("$_emUrl/user/$userId"));
+    final response = await http.delete(Uri.parse("$baseURL/user/$userId"));
     if (response.statusCode != 200) {
       throw Exception('Ошибка: ${response.statusCode} ${response.body}');
     }
   }
   Future<String> checkUser(String email_or_phone) async {
-    final response = await http.post(Uri.parse("$_emUrl/user/check/$email_or_phone"));
+    final response = await http.post(Uri.parse("$baseURL/user/check/$email_or_phone"));
 
     if (response.statusCode == 200) {
       final userId = json.decode(response.body)['user_id'];
@@ -111,7 +120,7 @@ class ApiService {
   }
 
   Future<User> fetchUser(String userId) async {
-    final response = await http.get(Uri.parse("$_emUrl/user/$userId"));
+    final response = await http.get(Uri.parse("$baseURL/user/$userId"));
     if (response.statusCode == 200) {
       return User.fromJson(json.decode(response.body)['user']);
     } else {
@@ -120,7 +129,7 @@ class ApiService {
   }
 
   Future<bool> logout(String userId) async {
-    final response = await http.post(Uri.parse("$_emUrl/user/logout/$userId"));
+    final response = await http.post(Uri.parse("$baseURL/user/logout/$userId"));
     if (response.statusCode == 200) {
       return true;
     } else {
@@ -129,7 +138,7 @@ class ApiService {
   }
 
   Future<List<Product>> fetchProducts() async {
-    final response = await http.get(Uri.parse("$_emUrl/products"));
+    final response = await http.get(Uri.parse("$baseURL/products"));
     if (response.statusCode == 200) {
       return (json.decode(response.body) as List).map((item) => Product.fromJson(item)).toList();
     } else {
@@ -137,9 +146,17 @@ class ApiService {
     }
   }
 
+  Future<String> getYandexMapKey() async {
+    final response = await http.get(Uri.parse("$baseURL/yandex-map-key"));
+    if (response.statusCode == 200) {
+      return json.decode(response.body)['api_key'];
+    } else {
+      throw Exception('Ошибка загрузки ключа для карт: ${response.statusCode}');
+    }
+  }
 
   Future<List<Category>> fetchCategories() async {
-    final response = await http.get(Uri.parse("$_emUrl/categories"));
+    final response = await http.get(Uri.parse("$baseURL/categories"));
 
     if (response.statusCode == 200) {
       return (json.decode(response.body) as List).map((item) => Category.fromJson(item)).toList();
@@ -150,7 +167,7 @@ class ApiService {
   }
 
   Future<String> GetCartIdByUserId(String userId) async {
-    final response = await http.get(Uri.parse("$_emUrl/cart/$userId"));
+    final response = await http.get(Uri.parse("$baseURL/cart/$userId"));
     if (response.statusCode == 200) {
       return json.decode(response.body)['cart_id'];
     } else {
@@ -159,7 +176,7 @@ class ApiService {
   }
 
   Future<String> CreateCart(String userId) async {
-    final response = await http.post(Uri.parse("$_emUrl/cart/$userId"));
+    final response = await http.post(Uri.parse("$baseURL/cart/$userId"));
     if (response.statusCode == 200 || response.statusCode == 201) {
       return json.decode(response.body)['cart_id'];
     } else {
@@ -167,7 +184,7 @@ class ApiService {
     }
   }
   Future<List<CartItem>> fetchCartItems({required String id}) async {
-    final response = await http.get(Uri.parse("$_emUrl/cart/items/$id"));
+    final response = await http.get(Uri.parse("$baseURL/cart/items/$id"));
 
     if (response.statusCode == 200) {
       var decoded = json.decode(response.body);
@@ -180,7 +197,7 @@ class ApiService {
   }
 
   Future<List<Product>> fetchProductsByIds(String query) async {
-    final response = await http.get(Uri.parse("$_emUrl/products?ids=$query"));
+    final response = await http.get(Uri.parse("$baseURL/products?ids=$query"));
     if (response.statusCode == 200) {
       return (json.decode(response.body) as List).map((item) => Product.fromJson(item)).toList();
     } else {
@@ -195,7 +212,7 @@ Future<List<Product>> getProductsPage({
   }) async {
     // В реальном API эти параметры добавляются в query string
     // Пример: ?page=0&limit=20&sort=price_asc&category=phones
-    final response = await http.get(Uri.parse('$_emUrl/products?page=$page&limit=$limit&filters=${json.encode(filters)}'));
+    final response = await http.get(Uri.parse('$baseURL/products?page=$page&limit=$limit&filters=${json.encode(filters)}'));
 
     if (response.statusCode == 200) {
       return (json.decode(response.body) as List).map((item) => Product.fromJson(item)).toList();
@@ -205,7 +222,7 @@ Future<List<Product>> getProductsPage({
   }
 
   Future<FavouriteItem> addToFavourites(String productId, String userId) async {
-    final url = Uri.parse('$_emUrl/user/$userId/favourites');
+    final url = Uri.parse('$baseURL/user/$userId/favourites');
     final headers = {'Content-Type': 'application/json'};
 
     // Отправка запроса
@@ -223,7 +240,7 @@ Future<List<Product>> getProductsPage({
   }
 
   Future<List<FavouriteItem>> fetchFavourites(String userId) async {
-    final url = Uri.parse('$_emUrl/user/$userId/favourites');
+    final url = Uri.parse('$baseURL/user/$userId/favourites');
     // Отправка запроса
     final response = await http.get(url);
 
@@ -240,7 +257,7 @@ Future<List<Product>> getProductsPage({
 
   Future<String> deleteFromFavourites(String productId, userId) async {
     final url = Uri.parse(
-      '$_emUrl/user/$userId/favourites/$productId',
+      '$baseURL/user/$userId/favourites/$productId',
     );
     // Отправка запроса
     final response = await http.delete(url);
@@ -254,7 +271,7 @@ Future<List<Product>> getProductsPage({
 
   Future<String> addToCart(CartItem item) async {
     final bd = json.encode(item);
-    final url = Uri.parse('$_emUrl/cart/items');
+    final url = Uri.parse('$baseURL/cart/items');
     final headers = {'Content-Type': 'application/json'};
     // Отправка запроса
     final response = await http.post(url, headers: headers, body: bd);
@@ -269,7 +286,7 @@ Future<List<Product>> getProductsPage({
   Future<String> deleteSelected(List<CartItem> selectedItems) async {
     final List<String> ids = selectedItems.map((item) => item.id).toList();
     final body = json.encode({"ids": ids});
-    final url = Uri.parse('$_emUrl/cart/items');
+    final url = Uri.parse('$baseURL/cart/items');
     final headers = {'Content-Type': 'application/json'};
     // Отправка запроса
     final response = await http.delete(url, headers: headers, body: body);
@@ -282,7 +299,7 @@ Future<List<Product>> getProductsPage({
   }
 
   Future<String> deleteFromCart(String itemId) async {
-    final url = Uri.parse('$_emUrl/cart/items/$itemId');
+    final url = Uri.parse('$baseURL/cart/items/$itemId');
     // Отправка запроса
     final response = await http.delete(url);
 
@@ -295,7 +312,7 @@ Future<List<Product>> getProductsPage({
 
   Future<String> updateCartItem(Map input) async {
     final body = json.encode(input);
-    final url = Uri.parse('$_emUrl/cart/items');
+    final url = Uri.parse('$baseURL/cart/items');
     final headers = {'Content-Type': 'application/json'};
     // Отправка запроса
     final response = await http.patch(url, headers: headers, body: body);
@@ -307,8 +324,9 @@ Future<List<Product>> getProductsPage({
     }
   }
 
+
   static Future<List<String>> GetImages(String id) async {
-    final url = Uri.parse('http://51.250.104.71:8085/products/$id/images');
+    final url = Uri.parse('$baseURL/products/$id/images');
     int start = DateTime.now().millisecondsSinceEpoch;
     final response = await http.get(url);
     if (response.statusCode == 200) {
@@ -321,7 +339,7 @@ Future<List<Product>> getProductsPage({
 
 
   Future<List<Order>> fetchOrders(String userId) {
-    final url = Uri.parse('$_emUrl/users/$userId/orders');
+    final url = Uri.parse('$baseURL/users/$userId/orders');
     // Отправка запроса
     return http.get(url).then((response) {
       if (response.statusCode == 200) {
@@ -337,7 +355,7 @@ Future<List<Product>> getProductsPage({
   }
 
   Future<String> createOrder(Order order) async {
-    final url = Uri.parse('$_emUrl/order');
+    final url = Uri.parse('$baseURL/order');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode(order);
     // Отправка запроса
@@ -350,7 +368,7 @@ Future<List<Product>> getProductsPage({
   }
 
   Future<OrderItem> createOrderItem(OrderItem item) async {
-    final url = Uri.parse('$_emUrl/order/items');
+    final url = Uri.parse('$baseURL/order/items');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode(item);
     // Отправка запроса
@@ -363,7 +381,7 @@ Future<List<Product>> getProductsPage({
   }
 
   Future<String> createOrderItems(List<OrderItem> items) async {
-    final url = Uri.parse('$_emUrl/order/:id/items');
+    final url = Uri.parse('$baseURL/order/:id/items');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode(items);
     // Отправка запроса
@@ -376,7 +394,7 @@ Future<List<Product>> getProductsPage({
   }
 
   Future<String> createDelivery(Delivery delivery) async {
-    final url = Uri.parse('$_emUrl/delivery');
+    final url = Uri.parse('$baseURL/delivery');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode(delivery);
     // Отправка запроса
