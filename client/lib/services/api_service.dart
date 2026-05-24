@@ -3,28 +3,32 @@ import 'package:http/http.dart' as http;
 import 'package:mobile_store/classes.dart';
 import 'package:flutter/material.dart';
 
-
 const String emURL = "http://10.0.2.2:8080";
 const String localUrl = "http://127.0.0.1:8080";
 
 const String baseURL = emURL;
 
 class ApiService {
-
   // late String _baseUrl;
 
-  ApiService(){
+  ApiService() {
     // _baseUrl = emURL;
   }
 
-  var token = '';
+  static var token = '';
 
-  void setToken(String token) => this.token = token;
-
+  void setToken(String token) => ApiService.token = token;
+  static Map<String, String> headers() => {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
 
   Future<AuthCode> sendCode(AuthCode code) async {
     final bd = json.encode(code);
-    final response = await http.post(Uri.parse("$baseURL/auth/code/send"), body: bd);
+    final response = await http.post(
+      Uri.parse("$baseURL/auth/code/send"),
+      body: bd,
+    );
 
     if (response.statusCode == 200) {
       return AuthCode.fromJson(json.decode(response.body)['code']);
@@ -35,7 +39,10 @@ class ApiService {
 
   Future<bool> verifyCode(String code, String recipient) async {
     final bd = json.encode({'code': code, 'recipient': recipient});
-    final response = await http.post(Uri.parse("$baseURL/auth/code/verify"), body: bd);
+    final response = await http.post(
+      Uri.parse("$baseURL/auth/code/verify"),
+      body: bd,
+    );
     if (response.statusCode == 200) {
       return true;
     } else {
@@ -45,12 +52,15 @@ class ApiService {
 
   Future<List<dynamic>> register(User user, AuthCode code) async {
     final bd = <String, dynamic>{'user': user.toJson(), 'code': code.toJson()};
-    final response = await http.post(Uri.parse("$baseURL/auth/register"), body: json.encode(bd));
+    final response = await http.post(
+      Uri.parse("$baseURL/auth/register"),
+      body: json.encode(bd),
+    );
     if (response.statusCode == 200) {
-
       return [
         User.fromJson(json.decode(response.body)['user']),
         Session.fromJson(json.decode(response.body)['session']),
+        json.decode(response.body)['access_token'],
       ];
     } else {
       throw Exception('Ошибка: ${response.statusCode} ${response.body}');
@@ -59,11 +69,15 @@ class ApiService {
 
   Future<List<dynamic>> login(User user, AuthCode code) async {
     final bd = <String, dynamic>{'user': user.toJson(), 'code': code.toJson()};
-    final response = await http.post(Uri.parse("$baseURL/auth/login"), body: json.encode(bd));
+    final response = await http.post(
+      Uri.parse("$baseURL/auth/login"),
+      body: json.encode(bd),
+    );
     if (response.statusCode == 200) {
       return [
         User.fromJson(json.decode(response.body)['user']),
         Session.fromJson(json.decode(response.body)['session']),
+        json.decode(response.body)['access_token'],
       ];
     } else {
       throw Exception('Ошибка: ${response.statusCode} ${response.body}');
@@ -72,27 +86,31 @@ class ApiService {
 
   Future<List<dynamic>> autoLogin(String userId, String token) async {
     final response = await http.post(
-      Uri.parse("$baseURL/auth/check"),
-      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      Uri.parse("$baseURL/auth/refresh"),
+      body: json.encode({'user_id': userId, 'refresh_token': token}),
     );
+    var decoded = json.decode(response.body);
     if (response.statusCode == 200) {
       final userData = await http.get(
         Uri.parse("$baseURL/user/$userId"),
-        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${decoded["access_token"]}'},
       );
       if (userData.statusCode == 200) {
         final sessionData = await http.get(
           Uri.parse("$baseURL/user/$userId/session"),
-          headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${decoded["access_token"]}'},
         );
         if (sessionData.statusCode == 200) {
           // var decoded = ;
           return [
             User.fromJson(json.decode(userData.body)["user"]),
             Session.fromJson(json.decode(sessionData.body)["session"]),
+            decoded["access_token"],
           ];
         } else {
-          throw Exception('Ошибка: ${sessionData.statusCode} ${sessionData.body}');
+          throw Exception(
+            'Ошибка: ${sessionData.statusCode} ${sessionData.body}',
+          );
         }
       } else {
         throw Exception('Ошибка: ${userData.statusCode} ${userData.body}');
@@ -103,13 +121,20 @@ class ApiService {
   }
 
   Future<void> deleteAccount(String userId) async {
-    final response = await http.delete(Uri.parse("$baseURL/user/$userId"));
+    final response = await http.delete(
+      Uri.parse("$baseURL/user/$userId"),
+      headers: headers(),
+    );
     if (response.statusCode != 200) {
       throw Exception('Ошибка: ${response.statusCode} ${response.body}');
     }
   }
+
   Future<String> checkUser(String email_or_phone) async {
-    final response = await http.post(Uri.parse("$baseURL/user/check/$email_or_phone"));
+    final response = await http.post(
+      Uri.parse("$baseURL/user/check/$email_or_phone"),
+      headers: headers(),
+    );
 
     if (response.statusCode == 200) {
       final userId = json.decode(response.body)['user_id'];
@@ -120,7 +145,7 @@ class ApiService {
   }
 
   Future<User> fetchUser(String userId) async {
-    final response = await http.get(Uri.parse("$baseURL/user/$userId"));
+    final response = await http.get(Uri.parse("$baseURL/user/$userId"), headers: headers());
     if (response.statusCode == 200) {
       return User.fromJson(json.decode(response.body)['user']);
     } else {
@@ -129,7 +154,7 @@ class ApiService {
   }
 
   Future<bool> logout(String userId) async {
-    final response = await http.post(Uri.parse("$baseURL/user/logout/$userId"));
+    final response = await http.post(Uri.parse("$baseURL/user/logout/$userId"), headers: headers());
     if (response.statusCode == 200) {
       return true;
     } else {
@@ -138,16 +163,18 @@ class ApiService {
   }
 
   Future<List<Product>> fetchProducts() async {
-    final response = await http.get(Uri.parse("$baseURL/products"));
+    final response = await http.get(Uri.parse("$baseURL/products"), headers: headers());
     if (response.statusCode == 200) {
-      return (json.decode(response.body) as List).map((item) => Product.fromJson(item)).toList();
+      return (json.decode(response.body) as List)
+          .map((item) => Product.fromJson(item))
+          .toList();
     } else {
       throw Exception('Ошибка загрузки продуктов: ${response.statusCode}');
     }
   }
 
   Future<String> getYandexMapKey() async {
-    final response = await http.get(Uri.parse("$baseURL/yandex-map-key"));
+    final response = await http.get(Uri.parse("$baseURL/yandex-map-key"), headers: headers());
     if (response.statusCode == 200) {
       return json.decode(response.body)['api_key'];
     } else {
@@ -156,10 +183,12 @@ class ApiService {
   }
 
   Future<List<Category>> fetchCategories() async {
-    final response = await http.get(Uri.parse("$baseURL/categories"));
+    final response = await http.get(Uri.parse("$baseURL/categories"), headers: headers());
 
     if (response.statusCode == 200) {
-      return (json.decode(response.body) as List).map((item) => Category.fromJson(item)).toList();
+      return (json.decode(response.body) as List)
+          .map((item) => Category.fromJson(item))
+          .toList();
       // print(data);
     } else {
       throw Exception('Ошибка загрузки категорий: ${response.statusCode}');
@@ -167,24 +196,29 @@ class ApiService {
   }
 
   Future<String> GetCartIdByUserId(String userId) async {
-    final response = await http.get(Uri.parse("$baseURL/cart/$userId"));
+    final response = await http.get(Uri.parse("$baseURL/cart/$userId"), headers: headers());
     if (response.statusCode == 200) {
       return json.decode(response.body)['cart_id'];
     } else {
-      throw Exception('Ошибка загрузки корзины: ${response.statusCode} ${response.body}');
+      throw Exception(
+        'Ошибка загрузки корзины: ${response.statusCode} ${response.body}',
+      );
     }
   }
 
   Future<String> CreateCart(String userId) async {
-    final response = await http.post(Uri.parse("$baseURL/cart/$userId"));
+    final response = await http.post(Uri.parse("$baseURL/cart/$userId"), headers: headers());
     if (response.statusCode == 200 || response.statusCode == 201) {
       return json.decode(response.body)['cart_id'];
     } else {
-      throw Exception('Ошибка загрузки корзины: ${response.statusCode} ${response.body}');
+      throw Exception(
+        'Ошибка загрузки корзины: ${response.statusCode} ${response.body}',
+      );
     }
   }
+
   Future<List<CartItem>> fetchCartItems({required String id}) async {
-    final response = await http.get(Uri.parse("$baseURL/cart/items/$id"));
+    final response = await http.get(Uri.parse("$baseURL/cart/items/$id"), headers: headers());
 
     if (response.statusCode == 200) {
       var decoded = json.decode(response.body);
@@ -192,30 +226,43 @@ class ApiService {
           ? (decoded as List).map((item) => CartItem.fromJson(item)).toList()
           : [];
     } else {
-      throw Exception('Ошибка загрузки корзины: ${response.statusCode}${response.body}');
+      throw Exception(
+        'Ошибка загрузки корзины: ${response.statusCode}${response.body}',
+      );
     }
   }
 
   Future<List<Product>> fetchProductsByIds(String query) async {
-    final response = await http.get(Uri.parse("$baseURL/products?ids=$query"));
+    final response = await http.get(Uri.parse("$baseURL/products?ids=$query"), headers: headers());
     if (response.statusCode == 200) {
-      return (json.decode(response.body) as List).map((item) => Product.fromJson(item)).toList();
+      return (json.decode(response.body) as List)
+          .map((item) => Product.fromJson(item))
+          .toList();
     } else {
-      throw Exception('Ошибка загрузки продуктов в корзине: ${response.statusCode}');
+      throw Exception(
+        'Ошибка загрузки продуктов в корзине: ${response.statusCode}',
+      );
     }
   }
 
-Future<List<Product>> getProductsPage({
+  Future<List<Product>> getProductsPage({
     required int page,
     required int limit,
     required Map<String, dynamic> filters,
   }) async {
     // В реальном API эти параметры добавляются в query string
     // Пример: ?page=0&limit=20&sort=price_asc&category=phones
-    final response = await http.get(Uri.parse('$baseURL/products?page=$page&limit=$limit&filters=${json.encode(filters)}'));
+    final response = await http.get(
+      Uri.parse(
+        '$baseURL/products?page=$page&limit=$limit&filters=${json.encode(filters)}',
+      ),
+      headers: headers(),
+    );
 
     if (response.statusCode == 200) {
-      return (json.decode(response.body) as List).map((item) => Product.fromJson(item)).toList();
+      return (json.decode(response.body) as List)
+          .map((item) => Product.fromJson(item))
+          .toList();
     } else {
       throw Exception('Ошибка загрузки продуктов: ${response.statusCode}');
     }
@@ -223,12 +270,11 @@ Future<List<Product>> getProductsPage({
 
   Future<FavouriteItem> addToFavourites(String productId, String userId) async {
     final url = Uri.parse('$baseURL/user/$userId/favourites');
-    final headers = {'Content-Type': 'application/json'};
 
     // Отправка запроса
     final response = await http.post(
       url,
-      headers: headers,
+      headers: headers(),
       body: json.encode({"product_id": productId}),
     );
 
@@ -242,25 +288,27 @@ Future<List<Product>> getProductsPage({
   Future<List<FavouriteItem>> fetchFavourites(String userId) async {
     final url = Uri.parse('$baseURL/user/$userId/favourites');
     // Отправка запроса
-    final response = await http.get(url);
+    final response = await http.get(url, headers: headers());
 
     if (response.statusCode == 200) {
       final decoded = json.decode(response.body);
       if (decoded == null) {
         return [];
       }
-      return (decoded as List).map((item) => FavouriteItem.fromJson(item)).toList();
+      return (decoded as List)
+          .map((item) => FavouriteItem.fromJson(item))
+          .toList();
     } else {
-      throw Exception('Ошибка загрузки избранного: ${response.statusCode} ${response.body}');
+      throw Exception(
+        'Ошибка загрузки избранного: ${response.statusCode} ${response.body}',
+      );
     }
   }
 
   Future<String> deleteFromFavourites(String productId, userId) async {
-    final url = Uri.parse(
-      '$baseURL/user/$userId/favourites/$productId',
-    );
+    final url = Uri.parse('$baseURL/user/$userId/favourites/$productId');
     // Отправка запроса
-    final response = await http.delete(url);
+    final response = await http.delete(url, headers: headers());
 
     if (response.statusCode == 200) {
       return "Успех: ${json.decode(response.body)}";
@@ -272,9 +320,8 @@ Future<List<Product>> getProductsPage({
   Future<String> addToCart(CartItem item) async {
     final bd = json.encode(item);
     final url = Uri.parse('$baseURL/cart/items');
-    final headers = {'Content-Type': 'application/json'};
     // Отправка запроса
-    final response = await http.post(url, headers: headers, body: bd);
+    final response = await http.post(url, headers: headers(), body: bd);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return json.decode(response.body)['id'] as String;
@@ -287,9 +334,8 @@ Future<List<Product>> getProductsPage({
     final List<String> ids = selectedItems.map((item) => item.id).toList();
     final body = json.encode({"ids": ids});
     final url = Uri.parse('$baseURL/cart/items');
-    final headers = {'Content-Type': 'application/json'};
     // Отправка запроса
-    final response = await http.delete(url, headers: headers, body: body);
+    final response = await http.delete(url, headers: headers(), body: body);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return "Успех: ${json.decode(response.body)}";
@@ -313,9 +359,8 @@ Future<List<Product>> getProductsPage({
   Future<String> updateCartItem(Map input) async {
     final body = json.encode(input);
     final url = Uri.parse('$baseURL/cart/items');
-    final headers = {'Content-Type': 'application/json'};
     // Отправка запроса
-    final response = await http.patch(url, headers: headers, body: body);
+    final response = await http.patch(url, headers: headers(), body: body);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return "Успех: ${json.decode(response.body)}";
@@ -324,24 +369,27 @@ Future<List<Product>> getProductsPage({
     }
   }
 
-
+  // TODO: переделать
   static Future<List<String>> GetImages(String id) async {
     final url = Uri.parse('$baseURL/products/$id/images');
     int start = DateTime.now().millisecondsSinceEpoch;
-    final response = await http.get(url);
+    final response = await http.get(url, headers: headers());
     if (response.statusCode == 200) {
       // debugPrint('time: ${DateTime.now().millisecondsSinceEpoch - start} ms');
-      return ((json.decode(response.body)['images'] ?? []) as List).map((item) => item["url"] as String).toList();
+      return ((json.decode(response.body)['images'] ?? []) as List)
+          .map((item) => item["url"] as String)
+          .toList();
     } else {
-      throw Exception('Ошибка загрузки изображений: ${response.statusCode} ${response.body}');
+      throw Exception(
+        'Ошибка загрузки изображений: ${response.statusCode} ${response.body}',
+      );
     }
   }
-
 
   Future<List<Order>> fetchOrders(String userId) {
     final url = Uri.parse('$baseURL/users/$userId/orders');
     // Отправка запроса
-    return http.get(url).then((response) {
+    return http.get(url, headers: headers()).then((response) {
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
         if (decoded == null) {
@@ -349,17 +397,18 @@ Future<List<Product>> getProductsPage({
         }
         return (decoded as List).map((item) => Order.fromJson(item)).toList();
       } else {
-        throw Exception('Ошибка загрузки заказов: ${response.statusCode} ${response.body}');
+        throw Exception(
+          'Ошибка загрузки заказов: ${response.statusCode} ${response.body}',
+        );
       }
     });
   }
 
   Future<String> createOrder(Order order) async {
     final url = Uri.parse('$baseURL/order');
-    final headers = {'Content-Type': 'application/json'};
     final body = json.encode(order);
     // Отправка запроса
-    final response = await http.post(url, headers: headers, body: body);
+    final response = await http.post(url, headers: headers(), body: body);
     if (response.statusCode == 200 || response.statusCode == 201) {
       return json.decode(response.body)['id'] as String;
     } else {
@@ -369,12 +418,11 @@ Future<List<Product>> getProductsPage({
 
   Future<OrderItem> createOrderItem(OrderItem item) async {
     final url = Uri.parse('$baseURL/order/items');
-    final headers = {'Content-Type': 'application/json'};
     final body = json.encode(item);
     // Отправка запроса
-    final response = await http.post(url, headers: headers, body: body);
+    final response = await http.post(url, headers: headers(), body: body);
     if (response.statusCode == 200 || response.statusCode == 201) {
-      return OrderItem.fromJson(  json.decode(response.body));
+      return OrderItem.fromJson(json.decode(response.body));
     } else {
       throw Exception('Ошибка: ${response.statusCode} ${response.body}');
     }
@@ -382,10 +430,9 @@ Future<List<Product>> getProductsPage({
 
   Future<String> createOrderItems(List<OrderItem> items) async {
     final url = Uri.parse('$baseURL/order/:id/items');
-    final headers = {'Content-Type': 'application/json'};
     final body = json.encode(items);
     // Отправка запроса
-    final response = await http.post(url, headers: headers, body: body);
+    final response = await http.post(url, headers: headers(), body: body);
     if (response.statusCode == 200 || response.statusCode == 201) {
       return 'Успех: ${json.decode(response.body)}';
     } else {
@@ -395,10 +442,9 @@ Future<List<Product>> getProductsPage({
 
   Future<String> createDelivery(Delivery delivery) async {
     final url = Uri.parse('$baseURL/delivery');
-    final headers = {'Content-Type': 'application/json'};
     final body = json.encode(delivery);
     // Отправка запроса
-    final response = await http.post(url, headers: headers, body: body);
+    final response = await http.post(url, headers: headers(), body: body);
     if (response.statusCode == 200 || response.statusCode == 201) {
       return 'Успех: ${json.decode(response.body)}';
     } else {
@@ -406,5 +452,3 @@ Future<List<Product>> getProductsPage({
     }
   }
 }
-
-

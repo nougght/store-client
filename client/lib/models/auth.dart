@@ -43,8 +43,13 @@ class AuthModel with ChangeNotifier {
 
   Future<void> _saveToken() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', currentSession!.token);
+    if (currentSession == null) return;
     await prefs.setString('userId', currentSession!.userId);
+    if (currentSession!.token.isEmpty) {
+      debugPrint('Токен отсутствует, не сохраняем');
+      return;
+    }
+    await prefs.setString('token', currentSession!.token);
   }
 
   // Методы
@@ -112,7 +117,7 @@ class AuthModel with ChangeNotifier {
       final response = await api.register(currentUser!, code!);
       currentUser = response[0];
       currentSession = response[1];
-      api.setToken(currentSession!.token);
+      api.setToken(response[2]);
       _saveToken();
       final cart_id = await api.CreateCart(currentUser!.userId);
       _isAuth = true;
@@ -147,7 +152,7 @@ class AuthModel with ChangeNotifier {
 
       currentUser = response[0];
       currentSession = response[1];
-      api.setToken(currentSession!.token);
+      api.setToken(response[2]);
       _isAuth = true;
       fetchFavourites();
       _saveToken();
@@ -222,7 +227,7 @@ class AuthModel with ChangeNotifier {
 
       currentUser = response[0];
       currentSession = response[1];
-      api.setToken(token);
+      api.setToken(response[2]);
       _isAuth = true;
       fetchFavourites();
       await timer;

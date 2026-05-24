@@ -4,21 +4,27 @@ import 'package:mobile_store/models/cacheManager.dart';
 import 'package:mobile_store/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
+import 'package:uuid/enums.dart';
+
+final nilUuid = Namespace.nil.value;
 
 class Product {
   Product({
-    this.id = "",
+    String id = "",
     this.name = "product_name",
     this.description = "",
     this.price = 0.0,
-    this.categoryId = "",
+    String categoryId = "",
     this.quantity = 0.0,
     this.unit = "шт",
     List<String>? images,
     this.hasImage = true,
     this.stock = 0,
     DateTime? creationDate,
-  }) : images = images ?? const [],
+  }) : id = id.isEmpty ? nilUuid : id,
+       categoryId = categoryId.isEmpty ? nilUuid : categoryId,
+       images = images ?? const [],
        creationDate = creationDate ?? DateTime.now();
 
   String id;
@@ -65,8 +71,12 @@ class Product {
   }
 
   Future<void> precache(String url, BuildContext context) async {
-    await precacheImage(FileImage(await MyCacheManager().getSingleFile(url)), context);
+    await precacheImage(
+      FileImage(await MyCacheManager().getSingleFile(url)),
+      context,
+    );
   }
+
   Future<List<String>> getImages(BuildContext context) async {
     try {
       if (images.isNotEmpty || hasImage == false) {
@@ -126,8 +136,8 @@ class Delivery {
   DateTime? deliveredAt;
 
   Delivery({
-    this.id = "",
-    this.orderId = "",
+    String id = "",
+    String orderId = "",
     this.address = "",
     this.latitude = 0.0,
     this.longitude = 0.0,
@@ -137,7 +147,9 @@ class Delivery {
     this.status = DeliveryStatus.pending,
     DateTime? scheduledAt,
     this.deliveredAt,
-  }) : this.scheduledAt = scheduledAt ?? DateTime.now().add(Duration(days: 1));
+  }) : id = id.isEmpty ? nilUuid : id,
+       orderId = orderId.isEmpty ? nilUuid : orderId,
+       scheduledAt = scheduledAt ?? DateTime.now().add(Duration(days: 1));
 
   factory Delivery.fromJson(Map<String, dynamic> json) {
     return Delivery(
@@ -151,7 +163,9 @@ class Delivery {
       packageSize: json['package_size'] ?? 0,
       status: DeliveryStatus.values.byName(json['status'] ?? "pending"),
       scheduledAt: DateTime.parse(json['scheduled_at']) ?? DateTime.now(),
-      deliveredAt: json['delivered_at'] == null ? null : DateTime.parse(json['delivered_at']),
+      deliveredAt: json['delivered_at'] == null
+          ? null
+          : DateTime.parse(json['delivered_at']),
     );
   }
 
@@ -187,8 +201,8 @@ class Order {
   Delivery delivery;
 
   Order({
-    this.id = "",
-    this.userId = "",
+    String id = "",
+    String userId = "",
     this.status = OrderStatus.pending,
     this.totalPrice = 0.0,
     this.deliveryPrice = 0.0,
@@ -197,7 +211,9 @@ class Order {
     DateTime? updatedAt,
     List<OrderItem>? items,
     Delivery? delivery,
-  }) : createdAt = createdAt ?? DateTime.now(),
+  }) : id = id.isEmpty ? nilUuid : id,
+       userId = userId.isEmpty ? nilUuid : userId,
+       createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now(),
        items = items ?? [],
        this.delivery = delivery ?? Delivery();
@@ -211,8 +227,12 @@ class Order {
     paymentMethod: json["payment_method"],
     createdAt: DateTime.parse(json["created_at"]),
     updatedAt: DateTime.parse(json["updated_at"]),
-    items: List<OrderItem>.from((json["items"] as List).map((x) => OrderItem.fromJson(x))),
-    delivery: json["delivery"] != null ? Delivery.fromJson(json["delivery"]) : Delivery(),
+    items: List<OrderItem>.from(
+      (json["items"] as List).map((x) => OrderItem.fromJson(x)),
+    ),
+    delivery: json["delivery"] != null
+        ? Delivery.fromJson(json["delivery"])
+        : Delivery(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -240,13 +260,18 @@ class OrderItem {
   double? weight;
 
   OrderItem({
-    this.id = "",
-    this.orderId = "",
-    this.productId = "",
-    this.quantity = 1,
-    this.price = 0.0,
-    this.weight,
-  });
+    String id = "",
+    String orderId = "",
+    String productId = "",
+    int quantity = 1,
+    double price = 0.0,
+    double? weight,
+  }) : id = id.isEmpty ? nilUuid : id,
+       orderId = orderId.isEmpty ? nilUuid : orderId,
+       productId = productId.isEmpty ? nilUuid : productId,
+       quantity = quantity,
+       price = price,
+       weight = weight;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
     id: json["id"],
@@ -269,12 +294,16 @@ class OrderItem {
 
 class CartItem {
   CartItem({
-    this.id = "",
-    this.cart_id = "",
-    this.productId = "",
-    this.quantity = 0,
-    this.isChecked = false,
-  });
+    String id = "",
+    String cart_id = "",
+    String productId = "",
+    int quantity = 0,
+    bool isChecked = false,
+  }) : id = id.isEmpty ? nilUuid : id,
+       cart_id = cart_id.isEmpty ? nilUuid : cart_id,
+       productId = productId.isEmpty ? nilUuid : productId,
+       quantity = quantity,
+       isChecked = isChecked;
 
   String id;
   String cart_id;
@@ -304,8 +333,13 @@ class CartItem {
 }
 
 class FavouriteItem {
-  FavouriteItem({this.userId = "", this.productId = "", DateTime? createdAt})
-    : createdAt = createdAt ?? DateTime.now();
+  FavouriteItem({
+    String userId = "",
+    String productId = "",
+    DateTime? createdAt,
+  }) : userId = userId.isEmpty ? nilUuid : userId,
+       productId = productId.isEmpty ? nilUuid : productId,
+       createdAt = createdAt ?? DateTime.now();
 
   String userId;
   String productId;
@@ -319,12 +353,21 @@ class FavouriteItem {
     );
   }
   Map<String, dynamic> toJson() {
-    return {'user_id': userId, 'product_id': productId, 'created_at': createdAt.toIso8601String()};
+    return {
+      'user_id': userId,
+      'product_id': productId,
+      'created_at': createdAt.toIso8601String(),
+    };
   }
 }
 
 class Category {
-  Category({this.id = "", this.name = "category_name", this.description = "", this.image = ""});
+  Category({
+    String id = "",
+    this.name = "category_name",
+    this.description = "",
+    this.image = "",
+  }) : id = id.isEmpty ? nilUuid : id;
 
   String id;
   String name;
@@ -354,21 +397,25 @@ class User {
   String username;
 
   User({
-    this.userId = "",
+    String userId = "",
     this.email = "",
     this.phone = "",
     this.createdAt,
     this.lastActive,
     this.username = "",
-  });
+  }) : userId = userId.isEmpty ? nilUuid : userId;
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       userId: json['user_id'] ?? "",
       email: json['email'] ?? "",
       phone: json['phone'] ?? "",
-      createdAt: json['created_at'] == null ? null : DateTime.parse(json['created_at']),
-      lastActive: json['last_active'] == null ? null : DateTime.parse(json['last_active']),
+      createdAt: json['created_at'] == null
+          ? null
+          : DateTime.parse(json['created_at']),
+      lastActive: json['last_active'] == null
+          ? null
+          : DateTime.parse(json['last_active']),
       username: json['username'] ?? "",
     );
   }
@@ -395,14 +442,15 @@ class Session {
   DateTime? expiresAt;
 
   Session({
-    this.sessionId = "",
-    this.userId = "",
+    String sessionId = "",
+    String userId = "",
     this.token = "",
     this.deviceInfo,
     this.ipAddress,
     this.createdAt,
     this.expiresAt,
-  });
+  }) : sessionId = sessionId.isEmpty ? nilUuid : sessionId,
+       userId = userId.isEmpty ? nilUuid : userId;
 
   factory Session.fromJson(Map<String, dynamic> json) {
     return Session(
@@ -412,7 +460,9 @@ class Session {
       deviceInfo: json['device_info'],
       ipAddress: json['ip_address'],
       createdAt: DateTime.parse(json['created_at']),
-      expiresAt: json['expires_at'] == null ? null : DateTime.parse(json['expires_at']),
+      expiresAt: json['expires_at'] == null
+          ? null
+          : DateTime.parse(json['expires_at']),
     );
   }
 
@@ -440,15 +490,16 @@ class AuthCode {
   String? recipient;
 
   AuthCode({
-    this.id = "",
-    this.userId = "",
+    String id = "",
+    String userId = "",
     this.code = "",
     this.channel = "",
     this.expiresAt,
     this.used = false,
     this.ipAddress,
     this.recipient,
-  });
+  }) : id = id.isEmpty ? nilUuid : id,
+       userId = userId.isEmpty ? nilUuid : userId;
 
   factory AuthCode.fromJson(Map<String, dynamic> json) {
     return AuthCode(
